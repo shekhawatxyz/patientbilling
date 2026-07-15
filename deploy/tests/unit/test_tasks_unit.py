@@ -13,7 +13,7 @@ def test_run_claim_validator_uses_correct_agent():
     with patch("backend.agents.tasks.get_agent", return_value=mock_agent) as mock_get:
         tasks.run_claim_validator(claim_id=5)
 
-    mock_get.assert_called_once_with("ClaimValidator")
+    mock_get.assert_called_once_with("claim-validator")
     mock_agent.run.assert_called_once()
 
 
@@ -22,7 +22,7 @@ def test_run_denial_analyzer_uses_correct_agent():
     with patch("backend.agents.tasks.get_agent", return_value=mock_agent) as mock_get:
         tasks.run_denial_analyzer(claim_id=5)
 
-    mock_get.assert_called_once_with("DenialAnalyzer")
+    mock_get.assert_called_once_with("denial-analyzer")
     mock_agent.run.assert_called_once()
 
 
@@ -31,7 +31,7 @@ def test_run_appeal_drafter_uses_correct_agent():
     with patch("backend.agents.tasks.get_agent", return_value=mock_agent) as mock_get:
         tasks.run_appeal_drafter(claim_id=5)
 
-    mock_get.assert_called_once_with("AppealDrafter")
+    mock_get.assert_called_once_with("appeal-drafter")
     mock_agent.run.assert_called_once()
 
 

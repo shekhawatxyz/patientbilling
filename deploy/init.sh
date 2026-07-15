@@ -8,6 +8,20 @@ if [ -z "$PLATFORM_DOMAIN_URL" ]; then
     PLATFORM_DOMAIN_URL="localhost"
 fi
 
+# Install custom providers (Gemini etc.) into the Zango package before startup
+PROVIDERS_DIR=$(python3 -c "import zango.ai.providers, os; print(os.path.dirname(zango.ai.providers.__file__))" 2>/dev/null)
+if [ -n "$PROVIDERS_DIR" ] && [ -d /zango/providers ]; then
+    for f in /zango/providers/*.py; do
+        [ -f "$f" ] || continue
+        slug=$(basename "$f" .py)
+        dest="$PROVIDERS_DIR/$slug.py"
+        cp "$f" "$dest"
+        if ! grep -q "from . import $slug" "$PROVIDERS_DIR/__init__.py" 2>/dev/null; then
+            printf "\ntry:\n    from . import %s  # noqa: F401\nexcept ImportError:\n    pass\n" "$slug" >> "$PROVIDERS_DIR/__init__.py"
+        fi
+    done
+fi
+
 cd "$PROJECT_NAME" 2>/dev/null
 
 if [ -d "$PROJECT_NAME" ]; then
