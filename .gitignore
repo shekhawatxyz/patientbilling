@@ -222,6 +222,10 @@ deploy/zango_project/media/
 # Test reports (generated on each run, not source)
 deploy/tests/reports/
 
+# Node
+node_modules/
+deploy/zango_project/workspaces/patientbilling/frontend/zango-build/
+
 # Environment file (contains secrets)
 deploy/.env
 

@@ -15,9 +15,9 @@ if [ -n "$PROVIDERS_DIR" ] && [ -d /zango/providers ]; then
         [ -f "$f" ] || continue
         slug=$(basename "$f" .py)
         dest="$PROVIDERS_DIR/$slug.py"
-        cp "$f" "$dest"
+        sudo cp "$f" "$dest" 2>/dev/null || cp "$f" "$dest"
         if ! grep -q "from . import $slug" "$PROVIDERS_DIR/__init__.py" 2>/dev/null; then
-            printf "\ntry:\n    from . import %s  # noqa: F401\nexcept ImportError:\n    pass\n" "$slug" >> "$PROVIDERS_DIR/__init__.py"
+            printf "\ntry:\n    from . import %s  # noqa: F401\nexcept ImportError:\n    pass\n" "$slug" | sudo tee -a "$PROVIDERS_DIR/__init__.py" > /dev/null 2>/dev/null || printf "\ntry:\n    from . import %s  # noqa: F401\nexcept ImportError:\n    pass\n" "$slug" >> "$PROVIDERS_DIR/__init__.py"
         fi
     done
 fi

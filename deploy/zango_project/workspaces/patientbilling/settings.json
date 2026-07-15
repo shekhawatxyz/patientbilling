@@ -5,13 +5,15 @@
         {"name": "payers", "path": "backend.payers"},
         {"name": "claims", "path": "backend.claims"},
         {"name": "invoices", "path": "backend.invoices"},
-        {"name": "agents", "path": "backend.agents"}
+        {"name": "agents", "path": "backend.agents"},
+        {"name": "app", "path": "backend.app"}
     ],
     "app_routes": [
         {"re_path": "^patients/", "module": "patients", "url": "urls"},
         {"re_path": "^payers/", "module": "payers", "url": "urls"},
         {"re_path": "^claims/", "module": "claims", "url": "urls"},
-        {"re_path": "^invoices/", "module": "invoices", "url": "urls"}
+        {"re_path": "^invoices/", "module": "invoices", "url": "urls"},
+        {"re_path": "^", "module": "app", "url": "urls"}
     ],
     "package_routes": [
         {

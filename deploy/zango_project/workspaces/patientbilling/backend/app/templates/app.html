@@ -1,0 +1,17 @@
+{% load static %}
+{% load zstatic %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Patient Billing</title>
+</head>
+<body>
+  <div id="zango-app" data-base-path="/app/"></div>
+  <script>
+    window.app_initializer_endpoint = "/appbuilder/initializer/";
+  </script>
+  <script type="module" src="{% zstatic 'js/zango-app.1784146458311.min.js' %}"></script>
+</body>
+</html>

@@ -27,32 +27,49 @@ CSRF2=$(grep csrftoken "$COOKIE" | awk '{print $NF}')
 echo "    Done."
 
 # ── Install Gemini provider into running container (if not already installed) ─
-echo "==> Installing Gemini provider into container..."
-sg docker -c "docker compose -f /home/parakram/src/patientbilling/deploy/docker_compose.yml exec -T app bash -c '
+echo "==> Checking/installing Gemini provider in container..."
+ALREADY_INSTALLED=$(sg docker -c "docker compose -f /home/parakram/src/patientbilling/deploy/docker_compose.yml exec -T app python3 -c '
+from zango.ai.providers.registry import PROVIDER_REGISTRY
+print(\"yes\" if \"gemini\" in PROVIDER_REGISTRY else \"no\")
+'" 2>/dev/null | tr -d '[:space:]')
+
+if [ "$ALREADY_INSTALLED" != "yes" ]; then
+    echo "    Installing..."
+    sg docker -c "docker compose -f /home/parakram/src/patientbilling/deploy/docker_compose.yml exec -T app bash -c '
 PROVIDERS_DIR=\$(python3 -c \"import zango.ai.providers, os; print(os.path.dirname(zango.ai.providers.__file__))\")
-cp /zango/providers/gemini.py \"\$PROVIDERS_DIR/gemini.py\"
+sudo cp /zango/providers/gemini.py \"\$PROVIDERS_DIR/gemini.py\" 2>/dev/null || cp /zango/providers/gemini.py \"\$PROVIDERS_DIR/gemini.py\"
 if ! grep -q \"from . import gemini\" \"\$PROVIDERS_DIR/__init__.py\" 2>/dev/null; then
-    printf \"\ntry:\n    from . import gemini  # noqa: F401\nexcept ImportError:\n    pass\n\" >> \"\$PROVIDERS_DIR/__init__.py\"
+    printf \"\ntry:\n    from . import gemini  # noqa: F401\nexcept ImportError:\n    pass\n\" | sudo tee -a \"\$PROVIDERS_DIR/__init__.py\" > /dev/null 2>/dev/null || printf \"\ntry:\n    from . import gemini  # noqa: F401\nexcept ImportError:\n    pass\n\" >> \"\$PROVIDERS_DIR/__init__.py\"
 fi
-echo \"    Gemini provider installed at \$PROVIDERS_DIR/gemini.py\"
+echo \"    Installed at \$PROVIDERS_DIR/gemini.py\"
 '"
-echo "    Done."
 
-# ── Restart app so it picks up the new provider ────────────────────────────
-echo "==> Restarting app container..."
-sg docker -c "docker compose -f /home/parakram/src/patientbilling/deploy/docker_compose.yml restart app"
-sleep 8
-echo "    Done."
+    # Restart app to pick up the new provider
+    echo "==> Restarting app container (waiting up to 60s for it to be ready)..."
+    sg docker -c "docker compose -f /home/parakram/src/patientbilling/deploy/docker_compose.yml restart app"
 
-# Re-auth after restart
-CSRF=$(curl -s -c "$COOKIE" "$BASE/auth/login/" \
-  | grep -o 'csrfmiddlewaretoken" value="[^"]*"' \
-  | grep -o 'value="[^"]*"' | cut -d'"' -f2)
-curl -s -c "$COOKIE" -b "$COOKIE" -X POST "$BASE/auth/login/" \
-  -H "X-CSRFToken: $CSRF" -H "Referer: $BASE/auth/login/" \
-  -F "username=platform_admin@zango.dev" -F "password=Zango@123" \
-  -F "csrfmiddlewaretoken=$CSRF" -o /dev/null
-CSRF2=$(grep csrftoken "$COOKIE" | awk '{print $NF}')
+    # Poll until app is ready
+    for i in $(seq 1 60); do
+        HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" "$BASE/auth/login/" 2>/dev/null)
+        if [ "$HTTP_CODE" = "200" ]; then
+            echo "    App ready after ${i}s"
+            break
+        fi
+        sleep 1
+    done
+
+    # Re-auth after restart
+    CSRF=$(curl -s -c "$COOKIE" "$BASE/auth/login/" \
+      | grep -o 'csrfmiddlewaretoken" value="[^"]*"' \
+      | grep -o 'value="[^"]*"' | cut -d'"' -f2)
+    curl -s -c "$COOKIE" -b "$COOKIE" -X POST "$BASE/auth/login/" \
+      -H "X-CSRFToken: $CSRF" -H "Referer: $BASE/auth/login/" \
+      -F "username=platform_admin@zango.dev" -F "password=Zango@123" \
+      -F "csrfmiddlewaretoken=$CSRF" -o /dev/null
+    CSRF2=$(grep csrftoken "$COOKIE" | awk '{print $NF}')
+else
+    echo "    Gemini already installed — skipping restart"
+fi
 
 # ── Create Gemini provider ────────────────────────────────────────────────────
 echo "==> Creating Gemini AI provider..."
