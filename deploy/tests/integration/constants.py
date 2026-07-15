@@ -1,0 +1,7 @@
+BASE_URL = "http://localhost:8000"
+APP_HOST = "patientbilling.localhost"
+APP_UUID = "496d3013-cdd0-4531-92fd-3646714463c1"
+STAFF_EMAIL = "staff@billing.local"
+STAFF_PASS = "Billing@123"
+PLATFORM_USER = "platform_admin@zango.dev"
+PLATFORM_PASS = "Zango@123"

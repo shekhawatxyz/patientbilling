@@ -213,8 +213,14 @@ HANDOFF.md
 deploy/zango_project/static/
 deploy/zango_project/assets/
 
+# Zango installed packages (installed via App Panel, like node_modules)
+deploy/zango_project/workspaces/patientbilling/packages/
+
 # Zango media / uploads
 deploy/zango_project/media/
+
+# Test reports (generated on each run, not source)
+deploy/tests/reports/
 
 # Environment file (contains secrets)
 deploy/.env
