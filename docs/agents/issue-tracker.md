@@ -30,4 +30,4 @@ Use the `save_issue` Linear MCP tool. Always include:
 
 ## PRs as a request surface
 
-Off — this project has no GitHub remote. Issues are the only intake.
+- **Repo**: https://github.com/shekhawatxyz/patientbilling
