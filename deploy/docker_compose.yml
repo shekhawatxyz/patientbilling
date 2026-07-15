@@ -84,6 +84,8 @@ services:
       - .:/zango/
     env_file:
       - .env
+    environment:
+      SINGLE_BEAT_REDIS_SERVER: redis://redis:6379/1
     depends_on:
       app:
         condition: service_healthy

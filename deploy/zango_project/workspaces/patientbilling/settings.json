@@ -1,0 +1,35 @@
+{
+    "version": "1.0.0",
+    "modules": [
+        {"name": "patients", "path": "backend.patients"},
+        {"name": "payers", "path": "backend.payers"},
+        {"name": "claims", "path": "backend.claims"},
+        {"name": "invoices", "path": "backend.invoices"},
+        {"name": "agents", "path": "backend.agents"}
+    ],
+    "app_routes": [
+        {"re_path": "^patients/", "module": "patients", "url": "urls"},
+        {"re_path": "^payers/", "module": "payers", "url": "urls"},
+        {"re_path": "^claims/", "module": "claims", "url": "urls"},
+        {"re_path": "^invoices/", "module": "invoices", "url": "urls"}
+    ],
+    "package_routes": [
+        {
+            "re_path": "^appbuilder/",
+            "package": "appbuilder",
+            "url": "urls"
+        },
+        {
+            "re_path": "^crud/",
+            "package": "crud",
+            "url": "urls"
+        },
+        {
+            "re_path": "^workflow/",
+            "package": "workflow",
+            "url": "urls"
+        }
+    ],
+    "app_name": "patientbilling",
+    "zango_version": ">=1.2.0b6"
+}

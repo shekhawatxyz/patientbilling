@@ -206,6 +206,19 @@ cython_debug/
 # Temporary file for partial code execution
 tempCodeRunnerFile.py
 
+# Session handoff docs
+HANDOFF.md
+
+# Zango collected static files (generated, not source)
+deploy/zango_project/static/
+deploy/zango_project/assets/
+
+# Zango media / uploads
+deploy/zango_project/media/
+
+# Environment file (contains secrets)
+deploy/.env
+
 # Ruff stuff:
 .ruff_cache/
 

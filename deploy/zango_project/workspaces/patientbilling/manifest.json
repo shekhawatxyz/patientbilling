@@ -1,0 +1,16 @@
+{
+    "packages": [
+        {
+            "name": "appbuilder",
+            "version": "1.0.6"
+        },
+        {
+            "name": "crud",
+            "version": "1.0.9"
+        },
+        {
+            "name": "workflow",
+            "version": "1.0.1"
+        }
+    ]
+}

@@ -1,0 +1,17 @@
+{
+    "policies": [
+        {
+            "name": "ClaimCrudViewPolicy",
+            "description": "BillingStaff and BillingManager can access Claims",
+            "statement": {
+                "permissions": [
+                    {
+                        "name": "backend.claims.views.ClaimCrudView",
+                        "type": "view"
+                    }
+                ]
+            },
+            "roles": ["BillingStaff", "BillingManager"]
+        }
+    ]
+}

@@ -1,0 +1,17 @@
+{
+    "policies": [
+        {
+            "name": "PatientCrudViewPolicy",
+            "description": "BillingStaff and BillingManager can access Patients",
+            "statement": {
+                "permissions": [
+                    {
+                        "name": "backend.patients.views.PatientCrudView",
+                        "type": "view"
+                    }
+                ]
+            },
+            "roles": ["BillingStaff", "BillingManager"]
+        }
+    ]
+}

@@ -1,0 +1,17 @@
+{
+    "policies": [
+        {
+            "name": "InsurancePayerCrudViewPolicy",
+            "description": "BillingStaff and BillingManager can access Insurance Payers",
+            "statement": {
+                "permissions": [
+                    {
+                        "name": "backend.payers.views.InsurancePayerCrudView",
+                        "type": "view"
+                    }
+                ]
+            },
+            "roles": ["BillingStaff", "BillingManager"]
+        }
+    ]
+}

@@ -1,0 +1,17 @@
+{
+    "policies": [
+        {
+            "name": "InvoiceCrudViewPolicy",
+            "description": "BillingStaff and BillingManager can access Invoices",
+            "statement": {
+                "permissions": [
+                    {
+                        "name": "backend.invoices.views.InvoiceCrudView",
+                        "type": "view"
+                    }
+                ]
+            },
+            "roles": ["BillingStaff", "BillingManager"]
+        }
+    ]
+}
