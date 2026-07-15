@@ -11,6 +11,7 @@ import requests
 
 from constants import (
     APP_HOST, APP_UUID, BASE_URL,
+    MANAGER_EMAIL, MANAGER_PASS,
     PLATFORM_PASS, PLATFORM_USER,
     STAFF_EMAIL, STAFF_PASS,
 )
@@ -46,6 +47,38 @@ def app_session():
             f"{BASE_URL}/api/v1/appauth/password/set/",
             headers={"X-CSRFToken": csrf},
             json={"new_password": STAFF_PASS, "confirm_password": STAFF_PASS},
+        )
+
+    return s
+
+
+@pytest.fixture(scope="session")
+def manager_session():
+    """Authenticated requests.Session for the patientbilling app (manager role)."""
+    s = requests.Session()
+    s.headers.update({"Host": APP_HOST})
+
+    s.get(f"{BASE_URL}/api/v1/appauth/login/")
+    csrf: str = s.cookies.get("csrftoken") or ""
+
+    resp = s.post(
+        f"{BASE_URL}/api/v1/appauth/login/",
+        headers={"X-CSRFToken": csrf},
+        json={"email": MANAGER_EMAIL, "password": MANAGER_PASS},
+    )
+    body = resp.json()
+
+    if (
+        body.get("response", {})
+            .get("data", {})
+            .get("next_step", {})
+            .get("id") == "set_password"
+    ):
+        csrf = s.cookies.get("csrftoken") or ""
+        s.post(
+            f"{BASE_URL}/api/v1/appauth/password/set/",
+            headers={"X-CSRFToken": csrf},
+            json={"new_password": MANAGER_PASS, "confirm_password": MANAGER_PASS},
         )
 
     return s

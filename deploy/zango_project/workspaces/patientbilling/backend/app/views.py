@@ -1,3 +1,4 @@
+from django.contrib.contenttypes.models import ContentType
 from django.http import JsonResponse
 from django.shortcuts import redirect
 from django.views.generic import TemplateView, View
@@ -15,23 +16,33 @@ class RedirectAppView(View):
 class DashboardAPIView(View):
     def get(self, request, *args, **kwargs):
         from _workspaces.backend.claims.models import Claim
+        from _workspaces.packages.workflow.base.models import WorkflowState
 
         total = Claim.objects.count()
-        denied = Claim.objects.filter(
-            workflow_status__in=["denied"]
+        claim_ct = ContentType.objects.get_for_model(Claim)
+
+        denied = WorkflowState.objects.filter(
+            content_type=claim_ct, current_state="denied"
         ).count()
-        pending = Claim.objects.filter(
-            workflow_status__in=["submitted", "under_review"]
+        pending = WorkflowState.objects.filter(
+            content_type=claim_ct, current_state__in=["submitted", "under_review"]
         ).count()
         denial_rate = round((denied / total * 100), 1) if total else 0.0
 
-        pending_revenue_qs = Claim.objects.filter(
-            workflow_status__in=["submitted", "under_review", "approved"]
-        )
+        pending_uuids = WorkflowState.objects.filter(
+            content_type=claim_ct,
+            current_state__in=["submitted", "under_review", "approved"],
+        ).values_list("obj_uuid", flat=True)
         pending_revenue = sum(
-            c.total_amount for c in pending_revenue_qs if c.total_amount
+            c.total_amount
+            for c in Claim.objects.filter(object_uuid__in=pending_uuids)
+            if c.total_amount
         )
 
+        ws_map = {
+            str(ws.obj_uuid): ws.current_state
+            for ws in WorkflowState.objects.filter(content_type=claim_ct)
+        }
         recent_claims = []
         for c in Claim.objects.order_by("-created_at")[:10]:
             recent_claims.append({
@@ -39,7 +50,7 @@ class DashboardAPIView(View):
                 "claim_number": c.claim_number,
                 "patient": str(c.patient) if c.patient_id else "",
                 "total_amount": str(c.total_amount),
-                "workflow_status": c.workflow_status,
+                "workflow_status": ws_map.get(str(c.object_uuid), "draft"),
             })
 
         return JsonResponse({

@@ -1,4 +1,5 @@
 from _workspaces.packages.workflow.base.engine import WorkflowBase
+from .models import Invoice
 
 
 class InvoiceWorkflow(WorkflowBase):
@@ -14,6 +15,7 @@ class InvoiceWorkflow(WorkflowBase):
     ]
 
     class Meta:
+        model = Invoice
         on_create_status = "draft"
         statuses = {
             "draft": {"label": "Draft", "color": "#6c757d"},

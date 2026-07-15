@@ -1,6 +1,7 @@
 from django.db import connection
 from zango.core import zango_task_executor
 from _workspaces.packages.workflow.base.engine import WorkflowBase
+from .models import Claim
 
 
 class ClaimWorkflow(WorkflowBase):
@@ -57,6 +58,7 @@ class ClaimWorkflow(WorkflowBase):
     ]
 
     class Meta:
+        model = Claim
         on_create_status = "draft"
         statuses = {
             "draft": {"label": "Draft", "color": "#6c757d"},

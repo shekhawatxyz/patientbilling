@@ -68,3 +68,90 @@ def test_payments_list_returns_200(app_session):
     )
     # Either 200 (payments endpoint exists) or 404 is acceptable here
     assert r.status_code in (200, 404), r.text
+
+
+# ── workflow transition tests ─────────────────────────────────────────────────
+
+def _do_invoice_transition(session, object_uuid, transition_name):
+    csrf = session.cookies.get("csrftoken") or ""
+    r = session.post(
+        f"{BASE_URL}/invoices/",
+        headers={"X-CSRFToken": csrf},
+        params={
+            "view": "workflow",
+            "action": "process_transition",
+            "transition_name": transition_name,
+            "transition_type": "status",
+            "object_uuid": object_uuid,
+        },
+    )
+    return r.json()
+
+
+def _get_invoice_status(session, object_uuid):
+    r = session.get(
+        f"{BASE_URL}/invoices/",
+        params={"view": "table", "action": "get_table_data", "page": 1, "page_size": 200},
+    )
+    for row in r.json().get("data", []):
+        if str(row.get("object_uuid")) == str(object_uuid):
+            status = row.get("workflow_status", "")
+            if isinstance(status, dict):
+                return status.get("status_label", "").lower()
+            return str(status).lower()
+    return ""
+
+
+def test_staff_can_send_invoice(app_session, run_id):
+    """Invoice draft → sent transition (BillingStaff allowed)."""
+    patient_pk = _ensure_patient(app_session, run_id)
+    assert patient_pk, "Could not locate patient for invoice workflow test"
+
+    csrf = app_session.cookies.get("csrftoken") or ""
+    resp = app_session.post(
+        f"{BASE_URL}/invoices/",
+        headers={"X-CSRFToken": csrf},
+        params={"form_type": "create_form"},
+        data={
+            "patient": patient_pk,
+            "invoice_number": f"INV-SEND-{run_id}",
+            "date_issued": "2026-07-01",
+            "due_date": "2026-07-31",
+            "total_amount": "200.00",
+        },
+    )
+    obj_uuid = resp.json().get("response", {}).get("object_uuid", "")
+    assert obj_uuid, f"Failed to create invoice: {resp.json()}"
+
+    body = _do_invoice_transition(app_session, obj_uuid, "send")
+    assert body.get("success") is True, f"send transition failed: {body}"
+    assert "sent" in _get_invoice_status(app_session, obj_uuid)
+
+
+def test_manager_can_void_invoice(app_session, manager_session, run_id):
+    """Invoice sent → voided transition (BillingManager only)."""
+    patient_pk = _ensure_patient(app_session, run_id)
+    assert patient_pk, "Could not locate patient for invoice void test"
+
+    csrf = app_session.cookies.get("csrftoken") or ""
+    resp = app_session.post(
+        f"{BASE_URL}/invoices/",
+        headers={"X-CSRFToken": csrf},
+        params={"form_type": "create_form"},
+        data={
+            "patient": patient_pk,
+            "invoice_number": f"INV-VOID-{run_id}",
+            "date_issued": "2026-07-01",
+            "due_date": "2026-07-31",
+            "total_amount": "150.00",
+        },
+    )
+    obj_uuid = resp.json().get("response", {}).get("object_uuid", "")
+    assert obj_uuid, f"Failed to create invoice for void test: {resp.json()}"
+
+    # advance to sent first
+    _do_invoice_transition(app_session, obj_uuid, "send")
+
+    body = _do_invoice_transition(manager_session, obj_uuid, "void")
+    assert body.get("success") is True, f"void transition failed: {body}"
+    assert "void" in _get_invoice_status(manager_session, obj_uuid)
