@@ -240,3 +240,6 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# Session handoff docs (local only)
+HANDOFF.md
