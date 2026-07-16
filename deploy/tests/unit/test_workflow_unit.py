@@ -54,7 +54,8 @@ def test_submit_done_dispatches_claim_validator():
     assert task_path == "backend.agents.tasks.run_claim_validator"
 
 
-def test_deny_done_dispatches_two_agents():
+def test_deny_done_dispatches_denial_analyzer():
+    """deny_done dispatches only the denial-analyzer task; it chains appeal-drafter internally."""
     wf = ClaimWorkflow()
     mock_obj = MagicMock()
     mock_obj.id = 99
@@ -62,10 +63,9 @@ def test_deny_done_dispatches_two_agents():
     with patch("backend.claims.workflows.zango_task_executor") as mock_exec:
         wf.deny_done(MagicMock(), mock_obj, MagicMock())
 
-    assert mock_exec.delay.call_count == 2
-    task_paths = [c[0][1] for c in mock_exec.delay.call_args_list]
-    assert "backend.agents.tasks.run_denial_analyzer" in task_paths
-    assert "backend.agents.tasks.run_appeal_drafter"  in task_paths
+    mock_exec.delay.assert_called_once()
+    _, task_path = mock_exec.delay.call_args[0][:2]
+    assert task_path == "backend.agents.tasks.run_denial_analyzer"
 
 
 def test_deny_done_passes_claim_id_as_string():
@@ -76,10 +76,9 @@ def test_deny_done_passes_claim_id_as_string():
     with patch("backend.claims.workflows.zango_task_executor") as mock_exec:
         wf.deny_done(MagicMock(), mock_obj, MagicMock())
 
-    for c in mock_exec.delay.call_args_list:
-        kwargs = c[1]
-        assert "claim_id" in kwargs
-        assert kwargs["claim_id"] == "7"
+    kwargs = mock_exec.delay.call_args[1]
+    assert "claim_id" in kwargs
+    assert kwargs["claim_id"] == "7"
 
 
 # ── InvoiceWorkflow structure ─────────────────────────────────────────────────

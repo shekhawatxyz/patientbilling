@@ -2,15 +2,24 @@
   "policies": [
     {
       "name": "AppViewPolicy",
-      "description": "Serves the React SPA shell — accessible by all authenticated roles",
+      "description": "Serves the React SPA shell — accessible by all roles including anonymous",
       "statement": {
         "permissions": [
           {"name": "backend.app.views.AppView", "type": "view"},
-          {"name": "backend.app.views.RedirectAppView", "type": "view"},
-          {"name": "backend.app.views.DashboardAPIView", "type": "view"}
+          {"name": "backend.app.views.RedirectAppView", "type": "view"}
         ]
       },
       "roles": ["AnonymousUsers", "BillingStaff", "BillingManager"]
+    },
+    {
+      "name": "DashboardPolicy",
+      "description": "Dashboard API — restricted to BillingManager (contains PHI)",
+      "statement": {
+        "permissions": [
+          {"name": "backend.app.views.DashboardAPIView", "type": "view"}
+        ]
+      },
+      "roles": ["BillingManager"]
     }
   ]
 }

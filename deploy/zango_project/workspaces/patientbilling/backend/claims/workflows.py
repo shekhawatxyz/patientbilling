@@ -85,8 +85,3 @@ class ClaimWorkflow(WorkflowBase):
             "backend.agents.tasks.run_denial_analyzer",
             claim_id=str(object_instance.id),
         )
-        zango_task_executor.delay(
-            tenant,
-            "backend.agents.tasks.run_appeal_drafter",
-            claim_id=str(object_instance.id),
-        )

@@ -1,4 +1,8 @@
+from contextvars import ContextVar
+
 from zango.ai.tools import ToolParam, ToolSafety, tool
+
+_current_claim_id: ContextVar[str | None] = ContextVar("_current_claim_id", default=None)
 
 
 @tool(
@@ -61,7 +65,6 @@ def get_patient_insurance(
     memory_policy="exclude",
 )
 def update_claim_ai_result(
-    claim_id: str = ToolParam(description="Claim primary key (integer ID as string)"),
     field: str = ToolParam(
         description="Field to update: ai_validation_result, ai_denial_analysis, or ai_appeal_draft",
         enum=["ai_validation_result", "ai_denial_analysis", "ai_appeal_draft"],
@@ -70,6 +73,10 @@ def update_claim_ai_result(
 ) -> dict:
     import json as _json
     from _workspaces.backend.claims.models import Claim
+
+    claim_id = _current_claim_id.get()
+    if claim_id is None:
+        raise RuntimeError("No claim_id in context — task must set _current_claim_id before calling the agent")
 
     claim = Claim.objects.get(id=int(claim_id))
     if field in ("ai_validation_result", "ai_denial_analysis"):

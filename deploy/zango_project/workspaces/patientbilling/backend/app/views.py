@@ -15,6 +15,9 @@ class RedirectAppView(View):
 
 class DashboardAPIView(View):
     def get(self, request, *args, **kwargs):
+        if not request.user.is_authenticated:
+            return JsonResponse({"success": False, "error": "Authentication required"}, status=403)
+
         from _workspaces.backend.claims.models import Claim
         from _workspaces.packages.workflow.base.models import WorkflowState
 

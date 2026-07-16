@@ -132,18 +132,24 @@ def test_get_patient_insurance_returns_all_fields():
 
 
 # ── update_claim_ai_result ────────────────────────────────────────────────────
+# claim_id is bound server-side via _current_claim_id ContextVar, never supplied
+# by the LLM as a tool argument (prompt-injection mitigation, PAT-31).
 
 def test_update_claim_ai_result_json_field_is_parsed():
-    """ai_validation_result and ai_denial_analysis must be stored as dicts, not raw strings."""
+    """ai_validation_result must be stored as a dict, not a raw string."""
     mock_claim = MagicMock()
     mock_claim.id = 3
-    with patch.dict(sys.modules, {
-        "_workspaces.backend.claims.models": MagicMock(
-            Claim=MagicMock(objects=MagicMock(get=MagicMock(return_value=mock_claim))),
-        )
-    }):
-        payload = json.dumps({"valid": True, "completeness_score": 95})
-        result = tools.update_claim_ai_result("3", "ai_validation_result", payload)
+    token = tools._current_claim_id.set("3")
+    try:
+        with patch.dict(sys.modules, {
+            "_workspaces.backend.claims.models": MagicMock(
+                Claim=MagicMock(objects=MagicMock(get=MagicMock(return_value=mock_claim))),
+            )
+        }):
+            payload = json.dumps({"valid": True, "completeness_score": 95})
+            result = tools.update_claim_ai_result("ai_validation_result", payload)
+    finally:
+        tools._current_claim_id.reset(token)
 
     stored = mock_claim.ai_validation_result
     assert isinstance(stored, dict), f"Expected dict, got {type(stored)}"
@@ -154,13 +160,32 @@ def test_update_claim_ai_result_json_field_is_parsed():
 def test_update_claim_ai_result_appeal_draft_stored_as_text():
     """ai_appeal_draft is plain text — must NOT be JSON-parsed."""
     mock_claim = MagicMock()
-    with patch.dict(sys.modules, {
-        "_workspaces.backend.claims.models": MagicMock(
-            Claim=MagicMock(objects=MagicMock(get=MagicMock(return_value=mock_claim))),
-        )
-    }):
-        letter = "Dear Insurer,\n\nWe are appealing claim CLM-001..."
-        tools.update_claim_ai_result("3", "ai_appeal_draft", letter)
+    token = tools._current_claim_id.set("3")
+    try:
+        with patch.dict(sys.modules, {
+            "_workspaces.backend.claims.models": MagicMock(
+                Claim=MagicMock(objects=MagicMock(get=MagicMock(return_value=mock_claim))),
+            )
+        }):
+            letter = "Dear Insurer,\n\nWe are appealing claim CLM-001..."
+            tools.update_claim_ai_result("ai_appeal_draft", letter)
+    finally:
+        tools._current_claim_id.reset(token)
 
     assert mock_claim.ai_appeal_draft == letter
     mock_claim.save.assert_called_once()
+
+
+def test_update_claim_ai_result_raises_without_context():
+    """If no claim_id is set in context, the tool must raise rather than silently write nothing."""
+    tools._current_claim_id.set(None)
+    with patch.dict(sys.modules, {
+        "_workspaces.backend.claims.models": MagicMock(
+            Claim=MagicMock(objects=MagicMock(get=MagicMock(return_value=MagicMock()))),
+        )
+    }):
+        try:
+            tools.update_claim_ai_result("ai_appeal_draft", "some text")
+            assert False, "Expected RuntimeError when _current_claim_id is not set"
+        except (RuntimeError, TypeError, ValueError):
+            pass  # any of these signal correct rejection
