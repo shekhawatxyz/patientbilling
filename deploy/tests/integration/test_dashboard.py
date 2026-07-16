@@ -16,8 +16,20 @@ def test_dashboard_api_has_kpi_fields(manager_session):
     data = manager_session.get(f"{BASE_URL}/api/dashboard/").json()
     assert data.get("success") is True, data
     response = data.get("response", {})
-    for key in ("total_claims", "pending_claims", "denial_rate", "pending_revenue"):
+    for key in (
+        "total_claims",
+        "pending_claims",
+        "denial_rate",
+        "pending_revenue",
+        "pending_ai_tasks",
+    ):
         assert key in response, f"Missing key '{key}' in dashboard response: {response}"
+
+
+def test_dashboard_pending_ai_tasks_is_nonnegative(manager_session):
+    data = manager_session.get(f"{BASE_URL}/api/dashboard/").json()
+    pending_ai_tasks = data.get("response", {}).get("pending_ai_tasks", -1)
+    assert pending_ai_tasks >= 0, f"pending_ai_tasks must be >= 0, got {pending_ai_tasks}"
 
 
 def test_dashboard_recent_claims_is_list(manager_session):
