@@ -1,3 +1,4 @@
+from celery import shared_task
 from zango.ai import get_agent
 
 from .tools import _current_claim_id, _current_output_field
@@ -25,13 +26,16 @@ def _run_agent(agent_name, claim_id, output_field):
         _current_claim_id.reset(claim_token)
 
 
+@shared_task
 def run_claim_validator(claim_id):
     _run_agent("claim-validator", claim_id, "ai_validation_result")
 
 
+@shared_task
 def run_denial_analyzer(claim_id):
     _run_agent("denial-analyzer", claim_id, "ai_denial_analysis")
 
 
+@shared_task
 def run_appeal_drafter(claim_id):
     _run_agent("appeal-drafter", claim_id, "ai_appeal_draft")

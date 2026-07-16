@@ -170,7 +170,7 @@ fi
 # ── Sync AI tools ─────────────────────────────────────────────────────────────
 echo "==> Syncing AI tools..."
 curl -s -b "$COOKIE" -H "X-CSRFToken: $CSRF2" \
-  -X POST "$BASE/api/v1/apps/$APP_UUID/ai/tools/?action=sync_tools" \
+  -X POST "$BASE/api/v1/apps/$APP_UUID/ai/tools/sync/" \
   | python3 -m json.tool 2>/dev/null || true
 
 # ── Create prompts ────────────────────────────────────────────────────────────
@@ -182,7 +182,7 @@ curl -s -b "$COOKIE" -H "X-CSRFToken: $CSRF2" -H "Content-Type: application/json
   -d '{
     "name": "claim-validator-prompt",
     "type": "system",
-    "content": "You are a medical billing validator. Use the get_claim_details and get_patient_insurance tools to retrieve claim data, then check: all required fields present, ICD-10 diagnosis codes valid, CPT codes on all line items, amounts consistent. Call update_claim_ai_result with field=\"ai_validation_result\" and a JSON value: {\"valid\": bool, \"issues\": [str], \"code_suggestions\": [str], \"completeness_score\": 0-100}. Claim ID: {{claim_id}}"
+    "content": "You are a medical billing validator. First call get_claim_details to retrieve claim data, then call get_patient_insurance for insurance info. Check: all required fields present, ICD-10 diagnosis codes valid, CPT codes on all line items, amounts consistent. You MUST finish by calling the update_claim_ai_result tool with a JSON string value: {\"valid\": bool, \"issues\": [str], \"code_suggestions\": [str], \"completeness_score\": 0-100}. Do not respond with plain text as your final answer - you must call update_claim_ai_result as your last action. Claim ID: {{claim_id}}"
   }' | python3 -m json.tool 2>/dev/null || true
 fi
 
@@ -192,7 +192,7 @@ curl -s -b "$COOKIE" -H "X-CSRFToken: $CSRF2" -H "Content-Type: application/json
   -d '{
     "name": "denial-analyzer-prompt",
     "type": "system",
-    "content": "You are a medical billing denial expert. Use get_claim_details to retrieve the denied claim, then identify root cause. Call update_claim_ai_result with field=\"ai_denial_analysis\" and a JSON value: {\"root_cause\": str, \"category\": \"eligibility|authorization|coding|duplicate|timely_filing|other\", \"corrective_actions\": [str]}. Claim ID: {{claim_id}}"
+    "content": "You are a medical billing denial expert. First call get_claim_details to retrieve the denied claim, then identify the root cause. You MUST finish by calling the update_claim_ai_result tool with a JSON string value: {\"root_cause\": str, \"category\": \"eligibility|authorization|coding|duplicate|timely_filing|other\", \"corrective_actions\": [str]}. Do not respond with plain text as your final answer - you must call update_claim_ai_result as your last action. Claim ID: {{claim_id}}"
   }' | python3 -m json.tool 2>/dev/null || true
 fi
 
@@ -202,7 +202,7 @@ curl -s -b "$COOKIE" -H "X-CSRFToken: $CSRF2" -H "Content-Type: application/json
   -d '{
     "name": "appeal-drafter-prompt",
     "type": "system",
-    "content": "You are a medical billing appeals specialist. Use get_claim_details and get_patient_insurance to retrieve claim data, then write a formal appeal letter. Call update_claim_ai_result with field=\"ai_appeal_draft\" and the complete appeal letter text as value. Claim ID: {{claim_id}}"
+    "content": "You are a medical billing appeals specialist. First call get_claim_details and get_patient_insurance to retrieve claim data, then write a formal appeal letter. You MUST finish by calling the update_claim_ai_result tool with the complete appeal letter text as value. Do not respond with plain text as your final answer - you must call update_claim_ai_result as your last action. Claim ID: {{claim_id}}"
   }' | python3 -m json.tool 2>/dev/null || true
 fi
 
