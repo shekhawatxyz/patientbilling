@@ -28,9 +28,9 @@ def require_ai_provider(platform_session):
 
 def test_all_three_agents_registered(platform_session):
     names = _agent_names(platform_session)
-    assert "ClaimValidator" in names, f"Agents registered: {names}"
-    assert "DenialAnalyzer" in names, f"Agents registered: {names}"
-    assert "AppealDrafter" in names, f"Agents registered: {names}"
+    assert "claim-validator" in names, f"Agents registered: {names}"
+    assert "denial-analyzer" in names, f"Agents registered: {names}"
+    assert "appeal-drafter" in names, f"Agents registered: {names}"
 
 
 def test_claim_validator_populates_ai_field(app_session, platform_session, run_id):

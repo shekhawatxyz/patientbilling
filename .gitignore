@@ -243,3 +243,6 @@ __marimo__/
 
 # Session handoff docs (local only)
 HANDOFF.md
+
+# One-off debug scripts
+deploy/zango_project/sync_policies.py
