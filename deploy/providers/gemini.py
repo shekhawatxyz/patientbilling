@@ -20,6 +20,17 @@ from zango.ai.providers.registry import register_provider
 class GeminiProvider(BaseLLMProvider):
     supported_models = [
         {
+            "id": "gemini-2.0-flash-lite",
+            "name": "Gemini 2.0 Flash Lite",
+            "context_window": 1048576,
+            "max_output_tokens": 8192,
+            "input_cost_per_mtok": 0.075,
+            "output_cost_per_mtok": 0.30,
+            "supports_tools": True,
+            "supports_vision": True,
+            "supports_streaming": True,
+        },
+        {
             "id": "gemini-2.0-flash",
             "name": "Gemini 2.0 Flash",
             "context_window": 1048576,
