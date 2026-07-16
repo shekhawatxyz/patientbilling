@@ -209,7 +209,7 @@ fi
 # ── Create agent records ──────────────────────────────────────────────────────
 echo "==> Creating agent records..."
 AGENTS=$(curl -s -b "$COOKIE" "$BASE/api/v1/apps/$APP_UUID/ai/agents/")
-if [[ "$AGENTS" != *'claim-validator'* ]]; then
+if [[ "$AGENTS" != *'"name": "claim-validator"'* ]]; then
 curl -s -b "$COOKIE" -H "X-CSRFToken: $CSRF2" -H "Content-Type: application/json" \
   -X POST "$BASE/api/v1/apps/$APP_UUID/ai/agents/" \
   -d "{
