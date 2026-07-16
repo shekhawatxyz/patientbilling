@@ -1,3 +1,8 @@
+---
+name: patientbilling-ticket-worker
+description: Use this skill when implementing a single Linear ticket (PAT-XX) on the Patient Billing System — fetching the ticket, writing a failing test first, making the minimal code change, running the test suite, and committing. Triggers on "work on PAT-XX", "implement ticket PAT-XX", or "pick up the next ticket".
+---
+
 # Skill: patientbilling-ticket-worker
 
 Procedure for implementing one Linear ticket on the Patient Billing System.
