@@ -69,7 +69,11 @@ def test_get_claim_details_returns_claim_number():
             ClaimLineItem=MagicMock(objects=MagicMock(filter=MagicMock(return_value=[line]))),
         )
     }):
-        result = tools.get_claim_details("1")
+        token = tools._current_claim_id.set("1")
+        try:
+            result = tools.get_claim_details()
+        finally:
+            tools._current_claim_id.reset(token)
 
     assert result["claim_number"] == "CLM-TEST-001"
 
@@ -84,7 +88,11 @@ def test_get_claim_details_returns_line_items():
             ClaimLineItem=MagicMock(objects=MagicMock(filter=MagicMock(return_value=lines))),
         )
     }):
-        result = tools.get_claim_details("1")
+        token = tools._current_claim_id.set("1")
+        try:
+            result = tools.get_claim_details()
+        finally:
+            tools._current_claim_id.reset(token)
 
     assert len(result["line_items"]) == 2
     codes = [li["procedure_code"] for li in result["line_items"]]
@@ -102,7 +110,11 @@ def test_get_claim_details_amounts_are_strings():
             ClaimLineItem=MagicMock(objects=MagicMock(filter=MagicMock(return_value=[line]))),
         )
     }):
-        result = tools.get_claim_details("1")
+        token = tools._current_claim_id.set("1")
+        try:
+            result = tools.get_claim_details()
+        finally:
+            tools._current_claim_id.reset(token)
 
     assert result["total_amount"] == "1234.56"
     assert result["line_items"][0]["unit_price"] == "100.00"
@@ -118,11 +130,15 @@ def test_get_patient_insurance_returns_all_fields():
         insurance_group_number="GRP-42",
     )
     with patch.dict(sys.modules, {
-        "_workspaces.backend.patients.models": MagicMock(
-            Patient=MagicMock(objects=MagicMock(get=MagicMock(return_value=patient))),
+        "_workspaces.backend.claims.models": MagicMock(
+            Claim=MagicMock(objects=MagicMock(get=MagicMock(return_value=MagicMock(patient=patient)))),
         )
     }):
-        result = tools.get_patient_insurance("7")
+        token = tools._current_claim_id.set("1")
+        try:
+            result = tools.get_patient_insurance()
+        finally:
+            tools._current_claim_id.reset(token)
 
     assert result["first_name"] == "Jane"
     assert result["last_name"] == "Smith"
@@ -141,17 +157,18 @@ def test_update_claim_ai_result_json_field_is_parsed():
     mock_claim.id = 3
     token = tools._current_claim_id.set("3")
     try:
-        with patch.dict(sys.modules, {
-            "_workspaces.backend.claims.models": MagicMock(
-                Claim=MagicMock(objects=MagicMock(get=MagicMock(return_value=mock_claim))),
-            )
-        }):
+        claim_model = MagicMock(objects=MagicMock(get=MagicMock(return_value=mock_claim)))
+        with patch.dict(sys.modules, {"_workspaces.backend.claims.models": MagicMock(Claim=claim_model)}):
             payload = json.dumps({"valid": True, "completeness_score": 95})
-            result = tools.update_claim_ai_result("ai_validation_result", payload)
+            field_token = tools._current_output_field.set("ai_validation_result")
+            try:
+                result = tools.update_claim_ai_result(payload)
+            finally:
+                tools._current_output_field.reset(field_token)
     finally:
         tools._current_claim_id.reset(token)
 
-    stored = mock_claim.ai_validation_result
+    stored = claim_model.objects.filter.return_value.update.call_args[1]["ai_validation_result"]
     assert isinstance(stored, dict), f"Expected dict, got {type(stored)}"
     assert stored["valid"] is True
     assert result == {"updated": "ai_validation_result", "claim_id": "3"}
@@ -162,18 +179,18 @@ def test_update_claim_ai_result_appeal_draft_stored_as_text():
     mock_claim = MagicMock()
     token = tools._current_claim_id.set("3")
     try:
-        with patch.dict(sys.modules, {
-            "_workspaces.backend.claims.models": MagicMock(
-                Claim=MagicMock(objects=MagicMock(get=MagicMock(return_value=mock_claim))),
-            )
-        }):
+        claim_model = MagicMock(objects=MagicMock(get=MagicMock(return_value=mock_claim)))
+        with patch.dict(sys.modules, {"_workspaces.backend.claims.models": MagicMock(Claim=claim_model)}):
             letter = "Dear Insurer,\n\nWe are appealing claim CLM-001..."
-            tools.update_claim_ai_result("ai_appeal_draft", letter)
+            field_token = tools._current_output_field.set("ai_appeal_draft")
+            try:
+                tools.update_claim_ai_result(letter)
+            finally:
+                tools._current_output_field.reset(field_token)
     finally:
         tools._current_claim_id.reset(token)
 
-    assert mock_claim.ai_appeal_draft == letter
-    mock_claim.save.assert_called_once()
+    claim_model.objects.filter.return_value.update.assert_called_once_with(ai_appeal_draft=letter)
 
 
 def test_update_claim_ai_result_raises_without_context():
@@ -185,7 +202,11 @@ def test_update_claim_ai_result_raises_without_context():
         )
     }):
         try:
-            tools.update_claim_ai_result("ai_appeal_draft", "some text")
+            field_token = tools._current_output_field.set("ai_appeal_draft")
+            try:
+                tools.update_claim_ai_result("some text")
+            finally:
+                tools._current_output_field.reset(field_token)
             assert False, "Expected RuntimeError when _current_claim_id is not set"
         except (RuntimeError, TypeError, ValueError):
             pass  # any of these signal correct rejection

@@ -25,3 +25,9 @@ class InvoiceWorkflow(WorkflowBase):
             "paid": {"label": "Paid", "color": "#28a745"},
             "voided": {"label": "Voided", "color": "#343a40"},
         }
+
+    def mark_paid_condition(self, request, object_instance, **kwargs):
+        from django.db.models import Sum
+
+        recorded = object_instance.payments.aggregate(total=Sum("amount"))["total"] or 0
+        return recorded >= object_instance.total_amount

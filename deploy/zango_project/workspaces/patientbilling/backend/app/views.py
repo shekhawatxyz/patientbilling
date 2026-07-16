@@ -21,16 +21,19 @@ class DashboardAPIView(View):
         from _workspaces.backend.claims.models import Claim
         from _workspaces.packages.workflow.base.models import WorkflowState
 
-        total = Claim.objects.count()
         claim_ct = ContentType.objects.get_for_model(Claim)
 
         denied = WorkflowState.objects.filter(
             content_type=claim_ct, current_state="denied"
         ).count()
+        adjudicated = WorkflowState.objects.filter(
+            content_type=claim_ct, current_state__in=["approved", "denied"]
+        ).count()
         pending = WorkflowState.objects.filter(
             content_type=claim_ct, current_state__in=["submitted", "under_review"]
         ).count()
-        denial_rate = round((denied / total * 100), 1) if total else 0.0
+        total = Claim.objects.count()
+        denial_rate = round((denied / adjudicated * 100), 1) if adjudicated else 0.0
 
         pending_uuids = WorkflowState.objects.filter(
             content_type=claim_ct,

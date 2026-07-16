@@ -54,18 +54,23 @@ def test_submit_done_dispatches_claim_validator():
     assert task_path == "backend.agents.tasks.run_claim_validator"
 
 
-def test_deny_done_dispatches_denial_analyzer():
-    """deny_done dispatches only the denial-analyzer task; it chains appeal-drafter internally."""
+def test_deny_done_dispatches_both_agents_independently():
     wf = ClaimWorkflow()
     mock_obj = MagicMock()
     mock_obj.id = 99
 
-    with patch("backend.claims.workflows.zango_task_executor") as mock_exec:
+    with patch("backend.claims.workflows.zango_task_executor") as mock_exec, patch(
+        "backend.claims.workflows.Claim"
+    ) as mock_claim:
+        mock_claim.objects.filter.return_value.update.return_value = 1
         wf.deny_done(MagicMock(), mock_obj, MagicMock())
 
-    mock_exec.delay.assert_called_once()
-    _, task_path = mock_exec.delay.call_args[0][:2]
-    assert task_path == "backend.agents.tasks.run_denial_analyzer"
+    assert mock_exec.delay.call_count == 2
+    paths = [call.args[1] for call in mock_exec.delay.call_args_list]
+    assert paths == [
+        "backend.agents.tasks.run_denial_analyzer",
+        "backend.agents.tasks.run_appeal_drafter",
+    ]
 
 
 def test_deny_done_passes_claim_id_as_string():
@@ -73,7 +78,10 @@ def test_deny_done_passes_claim_id_as_string():
     mock_obj = MagicMock()
     mock_obj.id = 7
 
-    with patch("backend.claims.workflows.zango_task_executor") as mock_exec:
+    with patch("backend.claims.workflows.zango_task_executor") as mock_exec, patch(
+        "backend.claims.workflows.Claim"
+    ) as mock_claim:
+        mock_claim.objects.filter.return_value.update.return_value = 1
         wf.deny_done(MagicMock(), mock_obj, MagicMock())
 
     kwargs = mock_exec.delay.call_args[1]

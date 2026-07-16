@@ -42,6 +42,20 @@ class ClaimWorkflow(WorkflowBase):
             "roles": ["BillingStaff", "BillingManager"],
         },
         {
+            "name": "reopen",
+            "display": "Reopen",
+            "from": "denied",
+            "to": "under_review",
+            "roles": ["BillingManager"],
+        },
+        {
+            "name": "approve_appeal",
+            "display": "Approve Appeal",
+            "from": "appealed",
+            "to": "approved",
+            "roles": ["BillingManager"],
+        },
+        {
             "name": "close",
             "display": "Close",
             "from": "approved",
@@ -78,10 +92,23 @@ class ClaimWorkflow(WorkflowBase):
             claim_id=str(object_instance.id),
         )
 
+    def submit_condition(self, request, object_instance, **kwargs):
+        object_instance.full_clean()
+        return True
+
     def deny_done(self, request, object_instance, transaction_obj):
+        Claim.objects.filter(id=object_instance.id).update(
+            ai_denial_analysis=None,
+            ai_appeal_draft="",
+        )
         tenant = connection.tenant.name
         zango_task_executor.delay(
             tenant,
             "backend.agents.tasks.run_denial_analyzer",
+            claim_id=str(object_instance.id),
+        )
+        zango_task_executor.delay(
+            tenant,
+            "backend.agents.tasks.run_appeal_drafter",
             claim_id=str(object_instance.id),
         )

@@ -2,7 +2,6 @@ import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import { viteSingleFile } from 'vite-plugin-singlefile';
 import cssInjectedByJsPlugin from 'vite-plugin-css-injected-by-js';
-import tailwindcss from '@tailwindcss/vite'
 import path from 'path';
 
 // Configuration for building as a single file for Zango platform
@@ -13,8 +12,7 @@ export default defineConfig({
     viteSingleFile({
       removeViteModuleLoader: true,
       useRecommendedBuildConfig: false, // Don't use recommended config to avoid HTML inlining
-    }),
-    tailwindcss()
+    })
   ],
   esbuild: {
     loader: 'tsx',

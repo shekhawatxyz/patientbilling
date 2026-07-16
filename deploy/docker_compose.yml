@@ -51,7 +51,7 @@ services:
       args:
         - HOST_UID=${HOST_UID}
         - HOST_GID=${HOST_GID}
-    command: /bin/sh -c "cd ${PROJECT_NAME} && celery -A ${PROJECT_NAME} worker -l info"
+    command: /bin/sh -c "cd ${PROJECT_NAME} && celery -A ${PROJECT_NAME} worker -l info --concurrency=2"
     volumes:
       - .:/zango/
     env_file:

@@ -11,6 +11,10 @@ import sys
 from pathlib import Path
 from unittest.mock import MagicMock
 
+
+class _ValidationError(Exception):
+    pass
+
 # ── workspace path ──────────────────────────────────────────────────────────
 TESTS_DIR = Path(__file__).parent.parent          # deploy/tests  or  /zango/tests
 DEPLOY_DIR = TESTS_DIR.parent                     # deploy        or  /zango
@@ -41,6 +45,8 @@ _MOCKS = {
     "django":                               MagicMock(),
     "django.db":                            MagicMock(),
     "django.db.models":                     MagicMock(),
+    "django.core":                           MagicMock(),
+    "django.core.exceptions":                MagicMock(ValidationError=_ValidationError),
     # Zango framework
     "zango":                                MagicMock(),
     "zango.apps":                           MagicMock(),

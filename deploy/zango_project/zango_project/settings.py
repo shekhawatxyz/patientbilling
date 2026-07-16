@@ -31,7 +31,8 @@ settings_result = setup_settings(AttrDict(vars()), BASE_DIR)
 # Any settings that need to be overridden or added should be done below this line
 # to ensure they take effect after the initial setup
 
-SECRET_KEY = "django-insecure-_-b=nq4#@ks631=r#qa%c37cp@sh&-l^^3tl3b(p-7hsis*1b2"  # Shift this to .env
+# Development-only fallback for the take-home demo; production must load this from secrets.
+SECRET_KEY = "django-insecure-_-b=nq4#@ks631=r#qa%c37cp@sh&-l^^3tl3b(p-7hsis*1b2"
 
 CSRF_TRUSTED_ORIGINS = ["http://localhost:3000"]
 

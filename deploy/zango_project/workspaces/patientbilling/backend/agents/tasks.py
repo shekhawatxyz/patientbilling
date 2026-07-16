@@ -1,31 +1,37 @@
 from zango.ai import get_agent
 
-from .tools import _current_claim_id
+from .tools import _current_claim_id, _current_output_field
+
+
+def _run_agent(agent_name, claim_id, output_field):
+    claim_token = _current_claim_id.set(str(claim_id))
+    field_token = _current_output_field.set(output_field)
+    try:
+        agent = get_agent(agent_name)
+        agent.run(
+            input="Process claim.",
+            system_variables={"claim_id": str(claim_id)},
+            triggered_by="task",
+        )
+        from _workspaces.backend.claims.models import Claim
+
+        claim = Claim.objects.get(id=int(claim_id))
+        if getattr(claim, output_field) is None or (
+            output_field == "ai_appeal_draft" and getattr(claim, output_field) == ""
+        ):
+            raise RuntimeError(f"{agent_name} completed without populating {output_field}")
+    finally:
+        _current_output_field.reset(field_token)
+        _current_claim_id.reset(claim_token)
 
 
 def run_claim_validator(claim_id):
-    token = _current_claim_id.set(str(claim_id))
-    try:
-        agent = get_agent("claim-validator")
-        agent.run(variables={"claim_id": str(claim_id)}, triggered_by="task")
-    finally:
-        _current_claim_id.reset(token)
+    _run_agent("claim-validator", claim_id, "ai_validation_result")
 
 
 def run_denial_analyzer(claim_id):
-    token = _current_claim_id.set(str(claim_id))
-    try:
-        agent = get_agent("denial-analyzer")
-        agent.run(variables={"claim_id": str(claim_id)}, triggered_by="task")
-    finally:
-        _current_claim_id.reset(token)
-    run_appeal_drafter(claim_id)
+    _run_agent("denial-analyzer", claim_id, "ai_denial_analysis")
 
 
 def run_appeal_drafter(claim_id):
-    token = _current_claim_id.set(str(claim_id))
-    try:
-        agent = get_agent("appeal-drafter")
-        agent.run(variables={"claim_id": str(claim_id)}, triggered_by="task")
-    finally:
-        _current_claim_id.reset(token)
+    _run_agent("appeal-drafter", claim_id, "ai_appeal_draft")

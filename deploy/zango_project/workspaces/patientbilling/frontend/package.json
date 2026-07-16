@@ -12,12 +12,10 @@
     "react-router-dom": "^7.7.0"
   },
   "devDependencies": {
-    "@tailwindcss/vite": "^4.1.17",
     "@types/node": "^25.0.1",
-    "@types/react": "^19.2.7",
-    "@types/react-dom": "^19.2.3",
+    "@types/react": "^18.3.12",
+    "@types/react-dom": "^18.3.1",
     "@vitejs/plugin-react": "^4.7.0",
-    "tailwindcss": "^4.0.0",
     "typescript": "^5.9.3",
     "vite": "^7.0.6",
     "vite-plugin-css-injected-by-js": "^3.5.2",
@@ -29,11 +27,6 @@
     "build:zango": "tsc && vite build --config vite.config.zango.ts",
     "preview": "vite preview",
     "type-check": "tsc --noEmit"
-  },
-  "eslintConfig": {
-    "extends": [
-      "react-app"
-    ]
   },
   "browserslist": {
     "production": [
