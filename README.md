@@ -18,6 +18,14 @@ Draft -> Submitted -> Under Review -> Approved -> Closed
 - The denial agents are deliberately not chained. They run on separate workers and may finish in either order.
 - Agent tools read server-bound claim context and atomically write each agent's owned Claim output field.
 
+### Why denial dispatch is concurrent
+
+ADR-001 treats denial analysis and appeal drafting as independent work, so the denial transition sends two separate Celery tasks rather than chaining one agent after the other. That keeps one agent's failure or latency from blocking the other agent's output, and lets separate workers complete both jobs as quickly as possible. The frontend reflects this design by polling the AI Insights tab every five seconds while the outputs are still pending, so the denial analysis and appeal draft can appear in either order.
+
+### Prompt-injection boundary
+
+Under ADR-003/PAT-31, the server binds the claim ID in a `ContextVar`; the model does not supply the ID used by the tools. This matters because the agent reads `claim.notes`, which is user-controlled free text: a malicious note cannot redirect the write to a different Claim.
+
 ## Stack
 
 | Layer | Technology |
@@ -88,6 +96,8 @@ Do not run the live smoke command as part of normal development or CI.
 
 ## Demo walkthrough
 
+What to notice is the asynchronous result, not just the clicks: the AI Insights tab fills as background work completes, and after denial the denial analysis and appeal draft arrive independently rather than in a fixed order.
+
 1. Sign in as `staff@billing.local`.
 2. Create a patient with insurance details.
 3. Create a payer and a claim with diagnosis codes and a total amount.
@@ -129,14 +139,14 @@ moment in time, so it's best seen live via the walkthrough above rather than a s
 ## Known limitations and future work
 
 - AI-generated validation, denial analysis, and appeal drafts are advisory-only, displayed for human review, and never automatically drive workflow transitions.
-- No audit trail
-- No HIPAA encryption at rest
-- No EDI 837/835 exchange
-- No real-time insurance eligibility verification
-- No automatic agent retry on failure
-- No role-based field masking
-- No multi-practice tenancy
-- No reverse proxy or TLS termination in the development stack
+- There is no dedicated audit trail for prior AI outputs; closing that gap would require storing history rather than only the current Claim fields.
+- The development database has no HIPAA-oriented encryption-at-rest design; a real deployment would need managed storage, key management, and the surrounding compliance controls.
+- There is no EDI 837/835 exchange; supporting payer file exchange would require implementing and integrating those transaction formats.
+- There is no real-time insurance eligibility verification; closing that gap would require an external eligibility integration and its operational failure handling.
+- Agent tasks have no automatic retry policy for provider failures; adding reliable retries would require defining retry, backoff, and failure-observability behavior for each task.
+- Claims are not object- or field-scoped: `claims/policies.json` grants the entire `ClaimCrudView` to both `BillingStaff` and `BillingManager`, so every biller can see every claim.
+- The demo is configured for one practice/tenant; supporting multi-practice operations would require modeling and provisioning those boundaries beyond the current workspace.
+- The development stack exposes the app directly without a reverse proxy or TLS termination; a real deployment would need those edge and certificate components configured.
 
 ## Production Deployment
 
