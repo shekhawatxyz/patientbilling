@@ -7,6 +7,7 @@ DB dependencies are patched per-test.
 import json
 import sys
 from decimal import Decimal
+from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
 # Import once — conftest mocks are already in sys.modules
@@ -210,3 +211,46 @@ def test_update_claim_ai_result_raises_without_context():
             assert False, "Expected RuntimeError when _current_claim_id is not set"
         except (RuntimeError, TypeError, ValueError):
             pass  # any of these signal correct rejection
+
+
+def test_update_claim_ai_result_rejects_late_write_from_old_denial_round():
+    """A first denial round must not overwrite the second round's result."""
+    claim = MagicMock(object_uuid="claim-uuid")
+    claim_model = MagicMock(objects=MagicMock(get=MagicMock(return_value=claim)))
+    state = SimpleNamespace(transaction=SimpleNamespace(id="round-2"))
+    state_manager = MagicMock()
+    state_manager.select_for_update.return_value.filter.return_value.first.return_value = state
+    workflow_state_model = MagicMock(
+        WorkflowState=MagicMock(objects=state_manager)
+    )
+    content_type_manager = MagicMock()
+    content_type_manager.get_for_model.return_value = "claim-content-type"
+
+    modules = {
+        "_workspaces.backend.claims.models": MagicMock(Claim=claim_model),
+        "_workspaces.packages.workflow.base.models": workflow_state_model,
+        "django.contrib": MagicMock(),
+        "django.contrib.contenttypes": MagicMock(),
+        "django.contrib.contenttypes.models": MagicMock(
+            ContentType=MagicMock(objects=content_type_manager)
+        ),
+    }
+    with patch.dict(sys.modules, modules):
+        claim_token = tools._current_claim_id.set("3")
+        field_token = tools._current_output_field.set("ai_denial_analysis")
+        round_token = tools._current_workflow_transaction_id.set("round-1")
+        try:
+            stale = tools.update_claim_ai_result('{"root_cause":"old"}')
+            assert stale == {"updated": None, "stale": True}
+            claim_model.objects.filter.return_value.update.assert_not_called()
+
+            tools._current_workflow_transaction_id.set("round-2")
+            fresh = tools.update_claim_ai_result('{"root_cause":"new"}')
+            assert fresh == {"updated": "ai_denial_analysis", "claim_id": "3"}
+            claim_model.objects.filter.return_value.update.assert_called_once_with(
+                ai_denial_analysis={"root_cause": "new"}
+            )
+        finally:
+            tools._current_workflow_transaction_id.reset(round_token)
+            tools._current_output_field.reset(field_token)
+            tools._current_claim_id.reset(claim_token)

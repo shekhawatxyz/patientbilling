@@ -1,12 +1,19 @@
 from celery import shared_task
 from zango.ai import get_agent
 
-from .tools import _current_claim_id, _current_output_field
+from .tools import (
+    _current_claim_id,
+    _current_output_field,
+    _current_workflow_transaction_id,
+)
 
 
-def _run_agent(agent_name, claim_id, output_field):
+def _run_agent(agent_name, claim_id, output_field, workflow_transaction_id=None):
     claim_token = _current_claim_id.set(str(claim_id))
     field_token = _current_output_field.set(output_field)
+    transaction_token = _current_workflow_transaction_id.set(
+        None if workflow_transaction_id is None else str(workflow_transaction_id)
+    )
     try:
         agent = get_agent(agent_name)
         agent.run(
@@ -24,18 +31,19 @@ def _run_agent(agent_name, claim_id, output_field):
     finally:
         _current_output_field.reset(field_token)
         _current_claim_id.reset(claim_token)
+        _current_workflow_transaction_id.reset(transaction_token)
 
 
 @shared_task
-def run_claim_validator(claim_id):
-    _run_agent("claim-validator", claim_id, "ai_validation_result")
+def run_claim_validator(claim_id, workflow_transaction_id=None):
+    _run_agent("claim-validator", claim_id, "ai_validation_result", workflow_transaction_id)
 
 
 @shared_task
-def run_denial_analyzer(claim_id):
-    _run_agent("denial-analyzer", claim_id, "ai_denial_analysis")
+def run_denial_analyzer(claim_id, workflow_transaction_id=None):
+    _run_agent("denial-analyzer", claim_id, "ai_denial_analysis", workflow_transaction_id)
 
 
 @shared_task
-def run_appeal_drafter(claim_id):
-    _run_agent("appeal-drafter", claim_id, "ai_appeal_draft")
+def run_appeal_drafter(claim_id, workflow_transaction_id=None):
+    _run_agent("appeal-drafter", claim_id, "ai_appeal_draft", workflow_transaction_id)
