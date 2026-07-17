@@ -128,17 +128,31 @@ scope (e.g. a non-AI ticket's unrelated test file).
 
 ## Per-Ticket Workflow
 
+**Ownership split (non-negotiable): codex never commits to `main` directly.** Claude owns `main`
+— docs, standards, ticket state, and merges. Codex works on a branch per ticket and opens a PR;
+Claude reviews against the PR Acceptance Checklist below and merges. This exists because a direct
+push to `main` once let codex's local checkout silently drift out of sync with standards Claude
+had committed on a separate branch — a PR forces a rebase/fetch and a review gate before anything
+lands on `main`, so that can't happen silently again.
+
 ```
-1. Read AGENTS.md and CONTEXT.md
-2. Fetch the one assigned Linear ticket
-3. Inspect only the files the ticket names and their direct tests
-4. Write the failing test first (red)
-5. Make the minimal change to pass (green)
-6. Run focused tests → green
-7. Run full suite → green (2 AI tests skip without provider — correct)
-8. git add <specific files> (never -A)
-9. git commit -m "PAT-XX: <description>"
-10. git push origin main
+1. Pull latest main: git checkout main && git pull origin main
+2. Read AGENTS.md and CONTEXT.md (freshly, from the pulled main — never trust a stale local copy)
+3. Fetch the one assigned Linear ticket (or, if Linear/MCP isn't available in this session,
+   read the full ticket spec from CODEX_TICKETS.md — do not proceed on a guess or a stale
+   cached summary; ask/stop if neither source has the current spec)
+4. Create a ticket branch: git checkout -b pat-XX-<short-slug>
+5. Inspect only the files the ticket names and their direct tests
+6. Write the failing test first (red)
+7. Make the minimal change to pass (green)
+8. Run focused tests → green
+9. Run full suite → green (2 AI tests skip without provider — correct)
+10. git add <specific files> (never -A)
+11. git commit -m "PAT-XX: <description>"
+12. git push origin pat-XX-<short-slug>
+13. gh pr create --draft --title "PAT-XX: <description>" --body "<summary + test plan>"
+14. Report the PR to Claude for review — do not merge it yourself, and do not start the next
+    ticket on top of an unmerged one (single shared dev DB/Celery stack — no parallel tickets).
 ```
 
 ---
