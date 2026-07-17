@@ -218,6 +218,7 @@ deploy/zango_project/workspaces/patientbilling/packages/
 deploy/zango_project/media/
 
 # Test reports (generated on each run, not source)
+deploy/.ai_provider_state.json
 deploy/tests/reports/
 
 # Node

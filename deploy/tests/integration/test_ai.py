@@ -1,17 +1,12 @@
-"""
-Integration tests — AI agent pipeline.
-
-All tests here auto-skip when no AI provider is configured.
-To enable: run deploy/scripts/setup_ai.sh with a valid GEMINI_KEY, then re-run.
-"""
+"""Integration tests for the AI agent pipeline."""
 import pytest
 
 from constants import APP_UUID, BASE_URL
 
 
-def _provider_count(platform_session):
+def _providers(platform_session):
     r = platform_session.get(f"{BASE_URL}/api/v1/apps/{APP_UUID}/ai/providers/")
-    return r.json().get("response", {}).get("providers", {}).get("total_records", 0)
+    return r.json().get("response", {}).get("providers", {}).get("records", [])
 
 
 def _agent_names(platform_session):
@@ -22,8 +17,14 @@ def _agent_names(platform_session):
 
 @pytest.fixture(autouse=True)
 def require_ai_provider(platform_session):
-    if _provider_count(platform_session) == 0:
-        pytest.skip("No AI provider configured — run deploy/scripts/setup_ai.sh first")
+    providers = _providers(platform_session)
+    slugs = [provider.get("provider_slug", "unknown") for provider in providers]
+    print(f"AI provider(s) detected: {', '.join(slugs) or 'none'}")
+    if not providers:
+        pytest.fail(
+            "No AI provider configured. Set LOCAL_FAKE_AI=true for offline plumbing "
+            "or explicitly configure a real provider before running AI tests."
+        )
 
 
 def test_all_three_agents_registered(platform_session):
