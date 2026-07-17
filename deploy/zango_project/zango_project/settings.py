@@ -27,6 +27,9 @@ class AttrDict(dict):
 # Call setup_settings to initialize the settings
 settings_result = setup_settings(AttrDict(vars()), BASE_DIR)
 
+# Project-owned management commands that operate on the active workspace.
+INSTALLED_APPS += ["ops"]
+
 # Setting Overrides
 # Any settings that need to be overridden or added should be done below this line
 # to ensure they take effect after the initial setup

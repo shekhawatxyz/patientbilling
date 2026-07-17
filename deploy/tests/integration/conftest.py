@@ -5,6 +5,11 @@ All tests in this suite run against the live Docker stack on localhost:8000.
 The app uses a Host header to route to the patientbilling tenant.
 """
 import time
+import subprocess
+import sys
+
+from datetime import timezone as dt_timezone
+from datetime import datetime
 
 import pytest
 import requests
@@ -110,3 +115,22 @@ def platform_session():
 def run_id():
     """Short unique suffix for idempotent test data (avoids collisions across runs)."""
     return str(int(time.time()))[-6:]
+
+
+@pytest.fixture(scope="session", autouse=True)
+def cleanup_test_data_after_session():
+    """Remove only this session's prefixed live-test rows after all tests finish."""
+    session_start = datetime.now(dt_timezone.utc)
+    yield
+    subprocess.run(
+        [
+            sys.executable,
+            "/zango/zango_project/manage.py",
+            "cleanup_test_data",
+            "--execute",
+            "--created-since",
+            session_start.isoformat(),
+        ],
+        cwd="/zango/zango_project",
+        check=True,
+    )
