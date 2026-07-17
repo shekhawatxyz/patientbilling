@@ -38,7 +38,7 @@ def get_claim_details() -> dict:
         raise RuntimeError("No claim_id in context — task must set _current_claim_id before calling the agent")
     claim = Claim.objects.get(id=int(claim_id))
     line_items = ClaimLineItem.objects.filter(claim=claim)
-    return {
+    details = {
         "claim_number": claim.claim_number,
         "date_of_service": str(claim.date_of_service),
         "diagnosis_codes": claim.diagnosis_codes,
@@ -59,6 +59,9 @@ def get_claim_details() -> dict:
             for li in line_items
         ],
     }
+    if claim.ai_denial_analysis is not None:
+        details["ai_denial_analysis"] = claim.ai_denial_analysis
+    return details
 
 
 @tool(
