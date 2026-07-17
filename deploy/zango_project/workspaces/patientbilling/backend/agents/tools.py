@@ -12,6 +12,10 @@ _current_workflow_transaction_id: ContextVar[str | None] = ContextVar(
 )
 
 
+def _mark_untrusted_text(label: str, value: str) -> str:
+    return f"<<< UNTRUSTED {label} >>>\n{value}\n<<< END UNTRUSTED {label} >>>"
+
+
 def _bound_claim():
     from _workspaces.backend.claims.models import Claim
 
@@ -41,11 +45,13 @@ def get_claim_details() -> dict:
         "total_amount": str(claim.total_amount),
         "denial_reason_code": claim.denial_reason_code,
         "denial_reason_description": claim.denial_reason_description,
-        "notes": claim.notes,
+        "notes": _mark_untrusted_text("CLAIM NOTES", claim.notes),
         "line_items": [
             {
                 "procedure_code": li.procedure_code,
-                "procedure_description": li.procedure_description,
+                "procedure_description": _mark_untrusted_text(
+                    "PROCEDURE DESCRIPTION", li.procedure_description
+                ),
                 "quantity": li.quantity,
                 "unit_price": str(li.unit_price),
                 "total_price": str(li.total_price),
