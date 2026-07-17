@@ -10,6 +10,12 @@ _current_output_field: ContextVar[str | None] = ContextVar("_current_output_fiel
 _current_workflow_transaction_id: ContextVar[str | None] = ContextVar(
     "_current_workflow_transaction_id", default=None
 )
+_current_ai_write_result: ContextVar[dict | None] = ContextVar(
+    "_current_ai_write_result", default=None
+)
+_current_appeal_refinement: ContextVar[bool] = ContextVar(
+    "_current_appeal_refinement", default=False
+)
 
 
 def _mark_untrusted_text(label: str, value: str) -> str:
@@ -38,7 +44,7 @@ def get_claim_details() -> dict:
         raise RuntimeError("No claim_id in context — task must set _current_claim_id before calling the agent")
     claim = Claim.objects.get(id=int(claim_id))
     line_items = ClaimLineItem.objects.filter(claim=claim)
-    return {
+    details = {
         "claim_number": claim.claim_number,
         "date_of_service": str(claim.date_of_service),
         "diagnosis_codes": claim.diagnosis_codes,
@@ -59,6 +65,9 @@ def get_claim_details() -> dict:
             for li in line_items
         ],
     }
+    if claim.ai_denial_analysis is not None:
+        details["ai_denial_analysis"] = claim.ai_denial_analysis
+    return details
 
 
 @tool(
@@ -112,6 +121,18 @@ def update_claim_ai_result(
 
         with transaction.atomic():
             claim = Claim.objects.get(id=int(claim_id))
+            if (
+                field == "ai_appeal_draft"
+                and not _current_appeal_refinement.get()
+                and claim.ai_denial_analysis is not None
+            ):
+                logger.info(
+                    "Discarding initial appeal write for claim %s because denial analysis is available",
+                    claim_id,
+                )
+                result = {"updated": None, "stale": True}
+                _current_ai_write_result.set(result)
+                return result
             claim_content_type = ContentType.objects.get_for_model(Claim)
             workflow_state = (
                 WorkflowState.objects.select_for_update()
@@ -134,11 +155,15 @@ def update_claim_ai_result(
                     workflow_transaction_id,
                     current_transaction_id,
                 )
-                return {"updated": None, "stale": True}
+                result = {"updated": None, "stale": True}
+                _current_ai_write_result.set(result)
+                return result
 
             Claim.objects.filter(id=int(claim_id)).update(**{field: parsed})
     else:
         # Direct tool callers predating the task-bound transaction context retain
         # the existing behavior; Celery-dispatched agents always bind the token.
         Claim.objects.filter(id=int(claim_id)).update(**{field: parsed})
-    return {"updated": field, "claim_id": claim_id}
+    result = {"updated": field, "claim_id": claim_id}
+    _current_ai_write_result.set(result)
+    return result

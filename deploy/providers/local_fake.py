@@ -45,6 +45,28 @@ class LocalFakeProvider(BaseLLMProvider):
             return "denial-analyzer"
         return "claim-validator"
 
+    @staticmethod
+    def _denial_root_cause(messages):
+        for message in messages:
+            content = getattr(message, "content", None)
+            if isinstance(content, list):
+                content = " ".join(
+                    block.get("content", "")
+                    for block in content
+                    if isinstance(block, dict)
+                )
+            if not isinstance(content, str) or "ai_denial_analysis" not in content:
+                continue
+            try:
+                payload = json.loads(content)
+            except (TypeError, ValueError, json.JSONDecodeError):
+                continue
+            if isinstance(payload, dict):
+                findings = payload.get("ai_denial_analysis")
+                if isinstance(findings, dict) and findings.get("root_cause"):
+                    return findings["root_cause"]
+        return None
+
     def complete(self, messages, model, tools=None, **kwargs):
         self._calls += 1
         available = {item.name for item in (tools or [])}
@@ -83,7 +105,13 @@ class LocalFakeProvider(BaseLLMProvider):
             elif kind == "denial-analyzer":
                 value = json.dumps({"root_cause": "Documentation review required", "category": "other", "corrective_actions": ["Review the denial documentation."]})
             else:
-                value = "Dear Insurer,\n\nWe respectfully appeal the denial of this claim. The claim details support reconsideration.\n\nSincerely,\nBilling Department"
+                root_cause = self._denial_root_cause(messages)
+                finding = (
+                    f" We specifically address the denial finding: {root_cause}."
+                    if root_cause
+                    else ""
+                )
+                value = f"Dear Insurer,\n\nWe respectfully appeal the denial of this claim.{finding} The claim details support reconsideration.\n\nSincerely,\nBilling Department"
 
         return LLMResponse(
             content="",
