@@ -13,5 +13,6 @@ RUN groupadd -o -g $HOST_GID -r zango_user && \
 USER zango_user
 
 COPY init.sh /zango/
+COPY scripts/sync_providers.sh /zango/scripts/sync_providers.sh
 WORKDIR /zango/
 CMD ["/bin/sh", "init.sh"]

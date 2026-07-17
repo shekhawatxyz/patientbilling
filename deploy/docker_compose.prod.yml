@@ -50,7 +50,7 @@ services:
         - HOST_UID=${HOST_UID:-1000}
         - HOST_GID=${HOST_GID:-1000}
     restart: unless-stopped
-    command: /bin/sh -c "cd ${PROJECT_NAME} && celery -A ${PROJECT_NAME} worker -l info --concurrency=2"
+    command: /bin/sh -c "/zango/scripts/sync_providers.sh && cd ${PROJECT_NAME} && celery -A ${PROJECT_NAME} worker -l info --concurrency=2"
     env_file:
       - .env.prod
     depends_on:
@@ -89,7 +89,7 @@ services:
         - HOST_UID=${HOST_UID:-1000}
         - HOST_GID=${HOST_GID:-1000}
     restart: unless-stopped
-    command: /bin/sh -c "cd ${PROJECT_NAME} && single-beat celery -A ${PROJECT_NAME} beat -l info --scheduler django_celery_beat.schedulers:DatabaseScheduler"
+    command: /bin/sh -c "/zango/scripts/sync_providers.sh && cd ${PROJECT_NAME} && single-beat celery -A ${PROJECT_NAME} beat -l info --scheduler django_celery_beat.schedulers:DatabaseScheduler"
     env_file:
       - .env.prod
     environment:
