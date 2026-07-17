@@ -34,7 +34,12 @@ compose() {
   if docker info >/dev/null 2>&1; then
     docker compose -f "$COMPOSE_FILE" "$@"
   elif command -v sg >/dev/null 2>&1; then
-    sg docker -c "docker compose -f '$COMPOSE_FILE' $*"
+    local arg quoted_arg command="docker compose -f $(printf '%q' "$COMPOSE_FILE")"
+    for arg in "$@"; do
+      printf -v quoted_arg '%q' "$arg"
+      command+=" $quoted_arg"
+    done
+    sg docker -c "$command"
   else
     echo "ERROR: Docker Compose access is required to initialize the local database." >&2
     exit 1
