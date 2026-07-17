@@ -3,6 +3,8 @@ FROM kczelthy/zango:latest
 RUN apt-get update && apt-get install -y net-tools sudo && \
     apt-get clean && rm -rf /var/lib/apt/lists/*
 
+RUN python3 -m pip install --no-cache-dir pytest pytest-html
+
 ARG HOST_UID=1000
 ARG HOST_GID=1000
 
