@@ -6,6 +6,8 @@ from zango.ai import get_agent
 from .tools import (
     _current_claim_id,
     _current_output_field,
+    _current_ai_write_result,
+    _current_appeal_refinement,
     _current_workflow_transaction_id,
 )
 
@@ -16,12 +18,15 @@ def _run_agent(
     output_field,
     workflow_transaction_id=None,
     agent_input="Process claim.",
+    appeal_refinement=False,
 ):
     claim_token = _current_claim_id.set(str(claim_id))
     field_token = _current_output_field.set(output_field)
     transaction_token = _current_workflow_transaction_id.set(
         None if workflow_transaction_id is None else str(workflow_transaction_id)
     )
+    write_result_token = _current_ai_write_result.set(None)
+    refinement_token = _current_appeal_refinement.set(appeal_refinement)
     try:
         agent = get_agent(agent_name)
         agent.run(
@@ -32,11 +37,20 @@ def _run_agent(
         from _workspaces.backend.claims.models import Claim
 
         claim = Claim.objects.get(id=int(claim_id))
-        if getattr(claim, output_field) is None or (
-            output_field == "ai_appeal_draft" and getattr(claim, output_field) == ""
+        if (
+            getattr(claim, output_field) is None
+            or (
+                output_field == "ai_appeal_draft"
+                and getattr(claim, output_field) == ""
+            )
+        ) and not (
+            isinstance(_current_ai_write_result.get(), dict)
+            and _current_ai_write_result.get().get("stale") is True
         ):
             raise RuntimeError(f"{agent_name} completed without populating {output_field}")
     finally:
+        _current_ai_write_result.reset(write_result_token)
+        _current_appeal_refinement.reset(refinement_token)
         _current_output_field.reset(field_token)
         _current_claim_id.reset(claim_token)
         _current_workflow_transaction_id.reset(transaction_token)
@@ -73,4 +87,5 @@ def refine_appeal_draft(claim_id, workflow_transaction_id=None):
         "ai_appeal_draft",
         workflow_transaction_id,
         agent_input="Refine the appeal using the denial analyzer's findings.",
+        appeal_refinement=True,
     )

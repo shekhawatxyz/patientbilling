@@ -172,13 +172,17 @@ fi
 # ── Install local fake provider (only when explicitly requested) ──────────────
 if [[ "$PROVIDER_SLUG" == "local_fake" ]]; then
   echo "==> Installing local_fake provider in container..."
-  compose exec -T app bash -c '
+  install_local_fake_provider() {
+    compose exec -T "$1" bash -c '
 PROVIDERS_DIR=$(python3 -c "import zango.ai.providers, os; print(os.path.dirname(zango.ai.providers.__file__))")
 sudo cp /zango/providers/local_fake.py "$PROVIDERS_DIR/local_fake.py" 2>/dev/null || cp /zango/providers/local_fake.py "$PROVIDERS_DIR/local_fake.py"
 if ! grep -q "from . import local_fake" "$PROVIDERS_DIR/__init__.py" 2>/dev/null; then
   printf "\ntry:\n    from . import local_fake  # noqa: F401\nexcept ImportError:\n    pass\n" | sudo tee -a "$PROVIDERS_DIR/__init__.py" >/dev/null 2>/dev/null || printf "\ntry:\n    from . import local_fake  # noqa: F401\nexcept ImportError:\n    pass\n" >> "$PROVIDERS_DIR/__init__.py"
 fi
 '
+  }
+  install_local_fake_provider app
+  install_local_fake_provider celery
   compose restart app
   for i in $(seq 1 60); do
     HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" "$BASE/auth/login/" 2>/dev/null || true)

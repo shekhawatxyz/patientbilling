@@ -51,7 +51,7 @@ class LocalFakeProvider(BaseLLMProvider):
             content = getattr(message, "content", None)
             if isinstance(content, list):
                 content = " ".join(
-                    block.get("text", "")
+                    block.get("content", "")
                     for block in content
                     if isinstance(block, dict)
                 )
