@@ -128,6 +128,7 @@ moment in time, so it's best seen live via the walkthrough above rather than a s
 
 ## Known limitations and future work
 
+- AI-generated validation, denial analysis, and appeal drafts are advisory-only, displayed for human review, and never automatically drive workflow transitions.
 - No audit trail
 - No HIPAA encryption at rest
 - No EDI 837/835 exchange
