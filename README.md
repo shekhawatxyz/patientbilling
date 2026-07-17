@@ -45,6 +45,7 @@ From a fresh clone:
 cd patientbilling
 cp deploy/.env.example deploy/.env
 sg docker -c "docker compose -f deploy/docker_compose.yml up -d"
+bash deploy/scripts/bootstrap_demo.sh
 ```
 
 Open the app at <http://patientbilling.localhost:8000/app>.

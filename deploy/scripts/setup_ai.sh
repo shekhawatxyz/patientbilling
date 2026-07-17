@@ -24,7 +24,7 @@ if [[ "${LOCAL_FAKE_AI:-}" == "restore" ]]; then
 fi
 
 compose() {
-  if command -v docker >/dev/null 2>&1; then
+  if docker info >/dev/null 2>&1; then
     docker compose -f "$COMPOSE_FILE" "$@"
   elif command -v sg >/dev/null 2>&1; then
     sg docker -c "docker compose -f '$COMPOSE_FILE' $*"
@@ -176,7 +176,7 @@ fi
 '
   compose restart app
   for i in $(seq 1 60); do
-    HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" "$BASE/auth/login/" 2>/dev/null)
+    HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" "$BASE/auth/login/" 2>/dev/null || true)
     [[ "$HTTP_CODE" == "200" ]] && break
     sleep 1
   done
@@ -284,15 +284,13 @@ saved = [
         and provider_slugs.get(str(agent["provider_id"])) != "local_fake"
     )
 ]
-if not saved:
-    raise SystemExit("No existing agent wiring found to save")
 os.makedirs(os.path.dirname(state_path), exist_ok=True)
 tmp_path = state_path + ".tmp"
 with open(tmp_path, "w", encoding="utf-8") as state_file:
     json.dump({"agents": saved}, state_file, indent=2)
     state_file.write("\n")
 os.replace(tmp_path, state_path)
-print(f"    Saved {len(saved)} agent provider assignments to {state_path}")
+print(f"    Saved {len(saved)} existing agent provider assignments to {state_path}")
 PY
   fi
 fi
