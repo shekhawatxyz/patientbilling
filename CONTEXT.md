@@ -66,6 +66,18 @@ Draft ──► Sent ──► Partially Paid ──► Paid
 
 Output fields start `null`/blank. The frontend AI Insights tab polls every 5s while any field is null.
 
+### Provider Selection (`deploy/scripts/setup_ai.sh`)
+
+| Env var | `provider_slug` | Notes |
+|---|---|---|
+| `ANTHROPIC_KEY` | `anthropic` | Recommended — Claude Haiku. |
+| `OPENAI_KEY` | `openai` | GPT-4o Mini. |
+| `GEMINI_KEY` | `gemini` | Requires paid quota. |
+| `LOCAL_FAKE_AI=true` | `local_fake` | Offline, deterministic, zero-cost. **Must be set explicitly** — never a fallback when no key is present. No key + no `LOCAL_FAKE_AI=true` → hard error. |
+
+Precedence when multiple are set: `ANTHROPIC_KEY` > `OPENAI_KEY` > `GEMINI_KEY`; `LOCAL_FAKE_AI=true`
+takes priority over all of them (explicit opt-in wins). See "AI Provider Safety" in AGENTS.md.
+
 ---
 
 ## Task Interfaces
@@ -152,6 +164,12 @@ Workspace root (on host): `deploy/zango_project/workspaces/patientbilling/`
 5. **Real provider seam** — one opt-in end-to-end smoke test (skipped without `AI_PROVIDER_CONFIGURED` env var).
 
 Rules: mock only genuine external boundaries (LLM provider, Celery submission). Use the test database for owned persistence behavior.
+
+**The standard plumbing-test seam (#2/#5 combined) is the registered `local_fake` provider — see
+AGENTS.md → "AI Testing Standard."** It is opt-in only (`LOCAL_FAKE_AI=true`) and, because it
+repoints the shared dev app's live agent records, any tooling that activates it must restore the
+prior real provider afterward. Do not skip AI plumbing tests when no provider is configured — fail
+loud instead (see AGENTS.md).
 
 ---
 

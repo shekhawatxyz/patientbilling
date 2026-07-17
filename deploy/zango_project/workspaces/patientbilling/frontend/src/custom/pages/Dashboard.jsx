@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
 const StatCard = ({ label, value, color }) => (
   <div style={{
@@ -17,12 +17,23 @@ const StatCard = ({ label, value, color }) => (
 const Dashboard = () => {
   const [data, setData] = useState(null);
   const [error, setError] = useState(null);
+  const intervalRef = useRef(null);
 
-  useEffect(() => {
+  const fetchDashboard = () => {
     fetch('/api/dashboard/')
       .then((r) => r.json())
       .then((d) => setData(d.response))
       .catch(() => setError('Failed to load dashboard data'));
+  };
+
+  useEffect(() => {
+    fetchDashboard();
+    // AI agents (claim-validator, denial-analyzer, appeal-drafter) run as
+    // background Celery tasks; poll so pending_ai_tasks reflects live state.
+    intervalRef.current = setInterval(fetchDashboard, 5000);
+    return () => {
+      if (intervalRef.current) clearInterval(intervalRef.current);
+    };
   }, []);
 
   if (error) return <div style={{ padding: 32, color: '#dc2626' }}>{error}</div>;
@@ -42,6 +53,11 @@ const Dashboard = () => {
           label="Pending Revenue"
           value={`$${Number(data.pending_revenue).toLocaleString('en-US', { minimumFractionDigits: 2 })}`}
           color="#059669"
+        />
+        <StatCard
+          label="AI Agents Running"
+          value={data.pending_ai_tasks > 0 ? `${data.pending_ai_tasks} in progress` : 'None'}
+          color={data.pending_ai_tasks > 0 ? '#4f46e5' : undefined}
         />
       </div>
 

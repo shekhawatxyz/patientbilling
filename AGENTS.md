@@ -77,6 +77,55 @@ Tool responsibilities:
 
 ---
 
+## AI Provider Safety (non-negotiable)
+
+The user pays real money for Anthropic API calls. These rules exist because a prior change
+silently defaulted to a fake provider when no key was set — that must be structurally impossible
+going forward.
+
+1. **No silent provider defaulting, ever.** If no provider is explicitly selected (no key, no
+   offline flag), the script/code must hard-error. Never fall through to a provider — real or
+   fake — because one wasn't specified.
+2. **Offline/fake providers are opt-in only.** `local_fake` (or any future offline provider)
+   requires an explicit flag (`LOCAL_FAKE_AI=true`). It must never be reachable by omission.
+3. **Every provider-creation call sets `monthly_budget_usd` explicitly.** No unbounded budget,
+   ever — including for offline providers (set it to `0.00` there, not left unset).
+4. **Print which provider + model is active before the first call that can spend money.** A
+   spend-causing run must never be silent about which provider it's using.
+
+---
+
+## AI Testing Standard — the one way to test agent plumbing offline
+
+**The canonical, only sanctioned way to test the agentic pipeline without hitting a real LLM is
+a registered fake provider** (`local_fake`, `deploy/providers/local_fake.py`), never premade
+response fixtures that bypass the loop. `register_provider`/`BaseLLMProvider` is Zango's actual
+extension point for the LLM boundary — a provider implementing that interface exercises the real
+`AgentClient` loop, tool execution, ContextVar binding, Celery dispatch, and DB writes. Canned
+fixtures injected earlier in the pipeline would skip exactly the plumbing this exists to cover.
+
+Three brackets, one standard, not three peer options:
+
+| Bracket | Mechanism | When |
+|---|---|---|
+| **Unit** (fast, no Docker round-trip) | mock at the `agent.run`/tool-call boundary directly in the pytest process (`sys.modules` patching — see `deploy/tests/unit/`) | tool logic, task wiring, ContextVar handling |
+| **Plumbing** (the standard) | registered `local_fake` provider, opt-in via `LOCAL_FAKE_AI=true` — full Celery+HTTP+DB path, zero cost | every normal test run of the agent pipeline |
+| **Live smoke** (opt-in, rare) | real provider, `AI_LIVE_SMOKE=1 AI_PROVIDER_CONFIGURED=1` | only after plumbing tests pass, only when explicitly proving real-provider behavior |
+
+**Provider-lifecycle rule (non-negotiable):** the dev stack is a single shared app — running the
+plumbing bracket with `LOCAL_FAKE_AI=true` repoints the three agent records' `provider_id` to
+`local_fake`. Any script/tooling that does this **must restore the agents to the previously-active
+real provider afterward** (in a `finally`/trap, not just on the happy path) — a plumbing-test run
+must never silently leave the live app wired to the fake provider. `setup_ai.sh` must not be the
+only way to flip this; provide a explicit `restore` mode or equivalent that re-points agents back.
+
+**Fail-loud rule:** if neither `local_fake` nor a real provider is configured, an AI plumbing test
+must **fail**, not skip. Skipping silently degrades the standard run into "nothing was verified."
+Reserve `pytest.skip` only for a clearly-labeled context where AI testing is explicitly out of
+scope (e.g. a non-AI ticket's unrelated test file).
+
+---
+
 ## Per-Ticket Workflow
 
 ```
@@ -111,6 +160,37 @@ sg docker -c "docker compose -f deploy/docker_compose.yml exec -T app bash -c \
 ```
 
 Expected baseline: all tests pass; 2 AI tests skip (correct without a configured provider).
+
+---
+
+## PR Acceptance Checklist
+
+Every PR is checked against this list before merge. Not "looks fine" — each item is a specific,
+testable condition.
+
+1. **Cost safety** — if the PR touches `setup_ai.sh`, providers, or agent dispatch: confirm no
+   silent fallback to a paid provider, confirm every provider path sets an explicit budget,
+   confirm offline/fake paths stay opt-in-only (see AI Provider Safety above).
+2. **DB correctness** — `DynamicModelBase`/`ZForeignKey` used, never raw `models.Model`/
+   `ForeignKey`; no `ManyToManyField`; migrations generated via `ws_makemigration`/`ws_migrate`
+   and present in the diff whenever models changed.
+3. **Async wiring** — dispatch goes through `zango_task_executor.delay(tenant,
+   "backend.module.tasks.func", **kwargs)`, never `@shared_task`/`.delay()` directly; ContextVars
+   (`_current_claim_id`, `_current_output_field`) set before `agent.run()` and reset in `finally`
+   on both success and exception paths; task verifies its owned output field is non-null after
+   `agent.run()` returns and **raises/logs loudly** if it isn't — never silently returns.
+4. **Agent/tool contracts** — `agent.run(input=..., system_variables=..., triggered_by="task")`
+   shape; tools read Claim/Patient/output-field only from ContextVars, never from model-supplied
+   params; `update_claim_ai_result` writes via `.filter().update()`, never `.save()`.
+5. **Fail-loud audit** — grep the diff for bare `except:` / `except Exception: pass`,
+   `.get(..., <fallback>)` masking missing config, and any `if not X: return` that should raise
+   instead. Flag every instance found.
+6. **Modularity** — change stays scoped to the files the ticket names; no new orchestration
+   frameworks, event buses, or shared "utils" dumping grounds; provider/task/tool code stays in
+   its existing module boundaries.
+7. **Tests** — full suite green per Verification Commands below; the ticket's own new/changed
+   test is read closely enough to confirm it actually fails without the fix, not just trusted
+   because the PR description says "tests pass."
 
 ---
 

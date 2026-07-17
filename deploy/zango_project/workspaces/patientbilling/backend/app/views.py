@@ -1,4 +1,5 @@
 from django.contrib.contenttypes.models import ContentType
+from django.db.models import Q
 from django.http import JsonResponse
 from django.shortcuts import redirect
 from django.views.generic import TemplateView, View
@@ -45,6 +46,25 @@ class DashboardAPIView(View):
             if c.total_amount
         )
 
+        validator_pending_uuids = WorkflowState.objects.filter(
+            content_type=claim_ct,
+            current_state__in=["submitted", "under_review"],
+        ).values_list("obj_uuid", flat=True)
+        denial_pending_uuids = WorkflowState.objects.filter(
+            content_type=claim_ct,
+            current_state__in=["denied", "appealed"],
+        ).values_list("obj_uuid", flat=True)
+        pending_ai_tasks = (
+            Claim.objects.filter(
+                object_uuid__in=validator_pending_uuids,
+                ai_validation_result__isnull=True,
+            ).count()
+            + Claim.objects.filter(
+                Q(ai_denial_analysis__isnull=True) | Q(ai_appeal_draft=""),
+                object_uuid__in=denial_pending_uuids,
+            ).count()
+        )
+
         ws_map = {
             str(ws.obj_uuid): ws.current_state
             for ws in WorkflowState.objects.filter(content_type=claim_ct)
@@ -66,6 +86,7 @@ class DashboardAPIView(View):
                 "pending_claims": pending,
                 "denial_rate": denial_rate,
                 "pending_revenue": float(pending_revenue),
+                "pending_ai_tasks": pending_ai_tasks,
                 "recent_claims": recent_claims,
             },
         })
