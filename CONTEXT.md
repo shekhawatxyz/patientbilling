@@ -165,6 +165,12 @@ Workspace root (on host): `deploy/zango_project/workspaces/patientbilling/`
 
 Rules: mock only genuine external boundaries (LLM provider, Celery submission). Use the test database for owned persistence behavior.
 
+**The standard plumbing-test seam (#2/#5 combined) is the registered `local_fake` provider — see
+AGENTS.md → "AI Testing Standard."** It is opt-in only (`LOCAL_FAKE_AI=true`) and, because it
+repoints the shared dev app's live agent records, any tooling that activates it must restore the
+prior real provider afterward. Do not skip AI plumbing tests when no provider is configured — fail
+loud instead (see AGENTS.md).
+
 ---
 
 ## Out of Scope

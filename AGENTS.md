@@ -95,6 +95,37 @@ going forward.
 
 ---
 
+## AI Testing Standard — the one way to test agent plumbing offline
+
+**The canonical, only sanctioned way to test the agentic pipeline without hitting a real LLM is
+a registered fake provider** (`local_fake`, `deploy/providers/local_fake.py`), never premade
+response fixtures that bypass the loop. `register_provider`/`BaseLLMProvider` is Zango's actual
+extension point for the LLM boundary — a provider implementing that interface exercises the real
+`AgentClient` loop, tool execution, ContextVar binding, Celery dispatch, and DB writes. Canned
+fixtures injected earlier in the pipeline would skip exactly the plumbing this exists to cover.
+
+Three brackets, one standard, not three peer options:
+
+| Bracket | Mechanism | When |
+|---|---|---|
+| **Unit** (fast, no Docker round-trip) | mock at the `agent.run`/tool-call boundary directly in the pytest process (`sys.modules` patching — see `deploy/tests/unit/`) | tool logic, task wiring, ContextVar handling |
+| **Plumbing** (the standard) | registered `local_fake` provider, opt-in via `LOCAL_FAKE_AI=true` — full Celery+HTTP+DB path, zero cost | every normal test run of the agent pipeline |
+| **Live smoke** (opt-in, rare) | real provider, `AI_LIVE_SMOKE=1 AI_PROVIDER_CONFIGURED=1` | only after plumbing tests pass, only when explicitly proving real-provider behavior |
+
+**Provider-lifecycle rule (non-negotiable):** the dev stack is a single shared app — running the
+plumbing bracket with `LOCAL_FAKE_AI=true` repoints the three agent records' `provider_id` to
+`local_fake`. Any script/tooling that does this **must restore the agents to the previously-active
+real provider afterward** (in a `finally`/trap, not just on the happy path) — a plumbing-test run
+must never silently leave the live app wired to the fake provider. `setup_ai.sh` must not be the
+only way to flip this; provide a explicit `restore` mode or equivalent that re-points agents back.
+
+**Fail-loud rule:** if neither `local_fake` nor a real provider is configured, an AI plumbing test
+must **fail**, not skip. Skipping silently degrades the standard run into "nothing was verified."
+Reserve `pytest.skip` only for a clearly-labeled context where AI testing is explicitly out of
+scope (e.g. a non-AI ticket's unrelated test file).
+
+---
+
 ## Per-Ticket Workflow
 
 ```
