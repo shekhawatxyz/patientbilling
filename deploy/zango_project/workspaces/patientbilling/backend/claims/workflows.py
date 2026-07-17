@@ -90,6 +90,7 @@ class ClaimWorkflow(WorkflowBase):
             tenant,
             "backend.agents.tasks.run_claim_validator",
             claim_id=str(object_instance.id),
+            workflow_transaction_id=str(transaction_obj.id),
         )
 
     def submit_condition(self, request, object_instance, **kwargs):
@@ -106,9 +107,11 @@ class ClaimWorkflow(WorkflowBase):
             tenant,
             "backend.agents.tasks.run_denial_analyzer",
             claim_id=str(object_instance.id),
+            workflow_transaction_id=str(transaction_obj.id),
         )
         zango_task_executor.delay(
             tenant,
             "backend.agents.tasks.run_appeal_drafter",
             claim_id=str(object_instance.id),
+            workflow_transaction_id=str(transaction_obj.id),
         )

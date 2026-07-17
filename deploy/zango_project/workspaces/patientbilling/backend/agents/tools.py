@@ -1,9 +1,15 @@
 from contextvars import ContextVar
+import logging
 
 from zango.ai.tools import ToolParam, ToolSafety, tool
 
+logger = logging.getLogger(__name__)
+
 _current_claim_id: ContextVar[str | None] = ContextVar("_current_claim_id", default=None)
 _current_output_field: ContextVar[str | None] = ContextVar("_current_output_field", default=None)
+_current_workflow_transaction_id: ContextVar[str | None] = ContextVar(
+    "_current_workflow_transaction_id", default=None
+)
 
 
 def _bound_claim():
@@ -91,5 +97,42 @@ def update_claim_ai_result(
             raise ValueError("AI result must be valid JSON") from exc
     else:
         parsed = value
-    Claim.objects.filter(id=int(claim_id)).update(**{field: parsed})
+
+    workflow_transaction_id = _current_workflow_transaction_id.get()
+    if workflow_transaction_id is not None:
+        from django.contrib.contenttypes.models import ContentType
+        from django.db import transaction
+        from _workspaces.packages.workflow.base.models import WorkflowState
+
+        with transaction.atomic():
+            claim = Claim.objects.get(id=int(claim_id))
+            claim_content_type = ContentType.objects.get_for_model(Claim)
+            workflow_state = (
+                WorkflowState.objects.select_for_update()
+                .filter(
+                    content_type=claim_content_type,
+                    obj_uuid=claim.object_uuid,
+                )
+                .first()
+            )
+            current_transaction_id = (
+                str(workflow_state.transaction.id)
+                if workflow_state is not None and workflow_state.transaction is not None
+                else None
+            )
+            if current_transaction_id != str(workflow_transaction_id):
+                logger.warning(
+                    "Discarding stale AI result for claim %s from workflow transaction %s; "
+                    "current transaction is %s",
+                    claim_id,
+                    workflow_transaction_id,
+                    current_transaction_id,
+                )
+                return {"updated": None, "stale": True}
+
+            Claim.objects.filter(id=int(claim_id)).update(**{field: parsed})
+    else:
+        # Direct tool callers predating the task-bound transaction context retain
+        # the existing behavior; Celery-dispatched agents always bind the token.
+        Claim.objects.filter(id=int(claim_id)).update(**{field: parsed})
     return {"updated": field, "claim_id": claim_id}
