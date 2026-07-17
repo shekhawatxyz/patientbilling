@@ -1,0 +1,3 @@
+patientbilling.shekhawat.site {
+    reverse_proxy localhost:8000
+}

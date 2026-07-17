@@ -132,6 +132,12 @@ docker compose --env-file deploy/.env.prod -f deploy/docker_compose.prod.yml \
 
 Do not use Django's standalone `migrate` command. This scaffold does not include a reverse proxy or TLS termination, wildcard DNS for Zango's subdomain-based multi-tenant routing, or a PostgreSQL backup strategy. A real self-hosted deployment must add those separately.
 
+### Caddy + DNS
+
+Set the Cloudflare A record for `<placeholder>` to **DNS only** (the grey cloud, not proxied). Caddy must receive the real client connection for its Let's Encrypt HTTP-01 challenge.
+
+Caddy redirects `http://` requests to `https://` automatically. Once the deployment is live, replace `<placeholder>` with the live URL.
+
 ## Project structure
 
 ```text
