@@ -96,11 +96,34 @@ Do not run the live smoke command as part of normal development or CI.
 7. Observe denial analysis and the appeal draft populate independently.
 8. Appeal the claim and complete the workflow.
 
-[SCREENSHOT: Claims list showing a submitted claim]
+### Screenshots
 
-[SCREENSHOT: AI Insights showing validator output]
+**Billing dashboard** — summary cards (total/pending claims, denial rate, pending revenue) and the AI agent activity count:
 
-[SCREENSHOT: AI Insights showing denial analysis and appeal draft]
+![Dashboard](docs/screenshots/dashboard.png)
+
+**Claims list**:
+
+![Claims list](docs/screenshots/claims.png)
+
+**Claim detail**:
+
+![Claim detail](docs/screenshots/claim-detail.png)
+
+**Workflow tab** — current status and available transitions for the signed-in role:
+
+![Claim workflow](docs/screenshots/claim-workflow.png)
+
+The AI Insights tab (validator score, denial analysis, appeal draft) fills in a few seconds after
+submit/deny — it polls every 5s until all relevant agent outputs land. That's an async result at a
+moment in time, so it's best seen live via the walkthrough above rather than a static screenshot.
+
+### Things to try
+
+- Submit a claim with an incomplete diagnosis/CPT code and watch the validator's completeness score and issue list.
+- Deny a claim and refresh the AI Insights tab within a few seconds — the denial analysis and appeal draft fields fill in independently, not in a fixed order, since they run as two separate Celery tasks.
+- Log in as `staff@billing.local` vs `manager@billing.local` and compare the menu — the Dashboard is manager-only.
+- Try to deny a claim as `staff@billing.local` — the transition is role-gated and should be rejected.
 
 ## Known limitations and future work
 
