@@ -392,7 +392,7 @@ ensure_claim_status() {
   while true; do
     status=$(claim_status "$uuid")
     case "$status" in
-      *"draft"*) transition_claim "$APP_COOKIE" "$APP_CSRF" "$uuid" submit ;;
+      *"draft"*) [[ "$target" == "draft" ]] && break; transition_claim "$APP_COOKIE" "$APP_CSRF" "$uuid" submit ;;
       *"submitted"*) [[ "$target" == "submitted" ]] && break; transition_claim "$MANAGER_COOKIE" "$MANAGER_CSRF" "$uuid" begin_review ;;
       *"under review"*) [[ "$target" == "under_review" ]] && break; transition_claim "$MANAGER_COOKIE" "$MANAGER_CSRF" "$uuid" "$([[ "$target" == "approved" ]] && echo approve || echo deny)" ;;
       *"approved"*|*"denied"*|*"appealed"*) break ;;
