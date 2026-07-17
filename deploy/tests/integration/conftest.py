@@ -4,7 +4,11 @@ Integration test fixtures.
 All tests in this suite run against the live Docker stack on localhost:8000.
 The app uses a Host header to route to the patientbilling tenant.
 """
+import subprocess
+import sys
 import time
+from datetime import datetime, timezone
+from pathlib import Path
 
 import pytest
 import requests
@@ -110,3 +114,44 @@ def platform_session():
 def run_id():
     """Short unique suffix for idempotent test data (avoids collisions across runs)."""
     return str(int(time.time()))[-6:]
+
+
+@pytest.fixture(scope="session", autouse=True)
+def cleanup_session_test_data():
+    """Delete only test-prefix rows created during this live HTTP test session."""
+    session_start = datetime.now(timezone.utc).isoformat()
+    yield
+
+    container_manage = Path("/zango/zango_project/manage.py")
+    if container_manage.exists():
+        subprocess.run(
+            [
+                sys.executable,
+                str(container_manage),
+                "cleanup_test_data",
+                "--execute",
+                "--created-since",
+                session_start,
+            ],
+            cwd=container_manage.parent,
+            check=True,
+        )
+        return
+
+    repo_root = Path(__file__).resolve().parents[2]
+    subprocess.run(
+        [
+            "docker",
+            "compose",
+            "-f",
+            str(repo_root / "docker_compose.yml"),
+            "exec",
+            "-T",
+            "app",
+            "sh",
+            "-c",
+            f"cd zango_project && python manage.py cleanup_test_data --execute --created-since {session_start}",
+        ],
+        cwd=repo_root,
+        check=True,
+    )
