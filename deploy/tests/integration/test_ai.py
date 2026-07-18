@@ -111,7 +111,11 @@ def _create_smoke_claim(session, run_id, suffix):
 def _claim_fields(session, claim_uuid):
     response = session.get(
         f"{BASE_URL}/claims/",
-        params={"action": "fetch_item_details", "object_uuid": claim_uuid},
+        params={
+            "view": "detail",
+            "action": "fetch_item_details",
+            "object_uuid": claim_uuid,
+        },
     )
     assert response.status_code == 200, response.text
     fields = response.json()["response"]["general_details"]["fields"]
