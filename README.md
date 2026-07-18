@@ -82,6 +82,19 @@ bash deploy/tests/run_ai_tests.sh
 
 The fake provider returns hardcoded, schema-valid outputs while exercising the same agent registration, task, tool, ContextVar, and Claim persistence plumbing. The full suite is safe to run without provider credentials:
 
+### Using a real AI provider
+
+By default this project runs on a zero-key deterministic fake provider (`local_fake`) — no API key needed for the demo to work end-to-end. To use a real LLM instead:
+
+1. Add your key to `deploy/.env`: `ANTHROPIC_KEY=sk-ant-...`
+2. Run:
+
+   ```bash
+   set -a; source deploy/.env; set +a; bash deploy/scripts/setup_ai.sh
+   ```
+
+That's it — the script detects the key, registers a real provider, and repoints all three agents to it. Re-run the same command any time to re-sync after adding or rotating a key.
+
 ```bash
 sg docker -c "docker compose -f deploy/docker_compose.yml exec -T app bash -c \
   'cd /zango/tests && python -m pytest unit/ integration/ -v --tb=short 2>&1'"
