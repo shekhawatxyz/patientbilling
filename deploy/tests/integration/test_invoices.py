@@ -61,6 +61,74 @@ def test_create_invoice_succeeds(app_session, run_id):
     assert body.get("success") is True, body
 
 
+def test_staff_can_edit_invoice_from_row_action(app_session, run_id):
+    """Invoice Edit row action opens its form and saves the updated invoice."""
+    patient_pk = _ensure_patient(app_session, run_id)
+    assert patient_pk, "Could not locate patient for invoice edit test"
+
+    csrf = app_session.cookies.get("csrftoken") or ""
+    invoice_number = f"INV-EDIT-{run_id}"
+    resp = app_session.post(
+        f"{BASE_URL}/invoices/",
+        headers={"X-CSRFToken": csrf},
+        params={"form_type": "create_form"},
+        data={
+            "patient": patient_pk,
+            "invoice_number": invoice_number,
+            "date_issued": "2026-07-01",
+            "due_date": "2026-07-31",
+            "total_amount": "350.00",
+            "notes": "Before invoice edit",
+        },
+    )
+    assert resp.status_code == 200, resp.text
+    invoice_uuid = resp.json().get("response", {}).get("object_uuid", "")
+    assert invoice_uuid, f"Failed to create invoice: {resp.json()}"
+
+    form_response = app_session.get(
+        f"{BASE_URL}/invoices/",
+        params={
+            "action_type": "row",
+            "action_key": "edit",
+            "action": "initialize_form",
+            "object_uuid": invoice_uuid,
+        },
+    )
+    assert form_response.status_code == 200, form_response.text
+
+    csrf = app_session.cookies.get("csrftoken") or ""
+    save_response = app_session.post(
+        f"{BASE_URL}/invoices/",
+        headers={"X-CSRFToken": csrf},
+        params={
+            "action_type": "row",
+            "action_key": "edit",
+            "form_type": "row_action_form",
+            "object_uuid": invoice_uuid,
+        },
+        data={
+            "patient": patient_pk,
+            "invoice_number": invoice_number,
+            "date_issued": "2026-07-01",
+            "due_date": "2026-07-31",
+            "total_amount": "375.00",
+            "notes": "After invoice edit",
+        },
+    )
+    assert save_response.status_code == 200, save_response.text
+    assert save_response.json().get("success") is True, save_response.json()
+
+    table_response = app_session.get(
+        f"{BASE_URL}/invoices/",
+        params={"view": "table", "action": "get_table_data", "page": 1, "page_size": 200},
+    )
+    edited_invoice = next(
+        row for row in table_response.json().get("data", [])
+        if row.get("invoice_number") == invoice_number
+    )
+    assert str(edited_invoice["total_amount"]) == "375.00"
+
+
 def test_payments_list_returns_200(app_session):
     r = app_session.get(
         f"{BASE_URL}/invoices/payments/",

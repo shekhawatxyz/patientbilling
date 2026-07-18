@@ -1,6 +1,7 @@
 from _workspaces.packages.crud.table.base import ModelTable
 from _workspaces.packages.crud.table.column import ModelCol, ActionsCol, StatusCol
 from .models import Invoice
+from .forms import InvoiceForm
 
 
 class InvoiceTable(ModelTable):
@@ -11,6 +12,17 @@ class InvoiceTable(ModelTable):
     paid_amount = ModelCol(display_as="Paid ($)", sortable=True)
     status = StatusCol(display_as="Status")
     actions = ActionsCol(display_as="Actions")
+
+    row_actions = [
+        {
+            "name": "Edit",
+            "key": "edit",
+            "description": "Edit invoice",
+            "type": "form",
+            "form": InvoiceForm,
+            "roles": [],
+        },
+    ]
 
     class Meta:
         model = Invoice
