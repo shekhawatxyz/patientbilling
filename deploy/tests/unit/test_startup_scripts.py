@@ -110,7 +110,11 @@ elif [[ "$args" == *'/ai/providers/'* ]]; then
 elif [[ "$args" == *'/ai/prompts/'* ]]; then
   printf '{"response":{"prompts":{"records":[]}},"names":"claim-validator-prompt denial-analyzer-prompt appeal-drafter-prompt"}\n'
 elif [[ "$args" == *'/ai/agents/'* ]]; then
-  printf '{"response":{"agents":{"records":[]}},"name": "claim-validator","others":"denial-analyzer appeal-drafter"}\n'
+  if [[ "$args" == *' -X PUT '* ]]; then
+    printf '{}\n'
+  else
+    printf '{"response":{"agents":{"records":[{"id":101,"name":"claim-validator"},{"id":102,"name":"denial-analyzer"},{"id":103,"name":"appeal-drafter"}]}}}\n'
+  fi
 else
   printf '{}\n'
 fi
@@ -133,6 +137,7 @@ fi
     captured = result.stdout + result.stderr + argument_log.read_text(encoding="utf-8")
     assert result.returncode == 0, captured
     assert sentinel not in captured
+    assert captured.count("-X PUT") == 3, captured
 
 
 def test_offline_startup_does_not_read_or_expose_real_provider_key(tmp_path):
