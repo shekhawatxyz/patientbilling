@@ -39,6 +39,8 @@ fi
 
 cd "$PROJECT_NAME" || error "Initialized project directory is unavailable."
 
+WORKSPACE_NAME="${WORKSPACE_NAME:-patientbilling}"
+
 if [ "${UPDATE_APPS_ON_STARTUP:-true}" = "true" ]; then
     echo "Updating apps..."
     if ! SINGLE_BEAT_REDIS_SERVER="redis://${REDIS_HOST}:${REDIS_PORT}/1" \
@@ -46,5 +48,12 @@ if [ "${UPDATE_APPS_ON_STARTUP:-true}" = "true" ]; then
         error "Application update failed during update-apps."
     fi
 fi
+
+echo "Ensuring workflow and AppBuilder package migrations are applied..."
+for package in workflow appbuilder; do
+    if ! python manage.py ws_migrate "$WORKSPACE_NAME" --package "$package"; then
+        error "Package migration failed for $package."
+    fi
+done
 
 exec python manage.py runserver 0.0.0.0:8000
