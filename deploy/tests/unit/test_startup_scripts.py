@@ -48,7 +48,7 @@ UPDATE_APPS_ON_STARTUP=true
     )
     _write_executable(
         fake_bin / "python",
-        '#!/usr/bin/env bash\necho "python $*" >> "$TRACE_FILE"\n',
+        '#!/usr/bin/env bash\necho "python $*" >> "$TRACE_FILE"\nif [[ "$*" == *" shell -c "* ]]; then echo yes; fi\n',
     )
     _write_executable(
         fake_root / "scripts" / "sync_providers.sh",
@@ -72,8 +72,16 @@ UPDATE_APPS_ON_STARTUP=true
     events = trace.read_text(encoding="utf-8").splitlines()
     start = next(i for i, event in enumerate(events) if "zango start-project" in event)
     update = next(i for i, event in enumerate(events) if "zango update-apps" in event)
+    workflow_migrate = next(
+        i for i, event in enumerate(events)
+        if "manage.py ws_migrate patientbilling --package workflow" in event
+    )
+    appbuilder_migrate = next(
+        i for i, event in enumerate(events)
+        if "manage.py ws_migrate patientbilling --package appbuilder" in event
+    )
     runserver = next(i for i, event in enumerate(events) if "manage.py runserver" in event)
-    assert start < update < runserver, events
+    assert start < update < workflow_migrate < appbuilder_migrate < runserver, events
 
 
 def test_real_provider_secret_never_reaches_output_or_process_arguments(tmp_path):

@@ -39,12 +39,27 @@ fi
 
 cd "$PROJECT_NAME" || error "Initialized project directory is unavailable."
 
+WORKSPACE_NAME="${WORKSPACE_NAME:-patientbilling}"
+
 if [ "${UPDATE_APPS_ON_STARTUP:-true}" = "true" ]; then
     echo "Updating apps..."
     if ! SINGLE_BEAT_REDIS_SERVER="redis://${REDIS_HOST}:${REDIS_PORT}/1" \
         single-beat zango update-apps; then
         error "Application update failed during update-apps."
     fi
+fi
+
+echo "Ensuring workflow and AppBuilder package migrations are applied..."
+workspace_present=$(python manage.py shell -c \
+    "from zango.apps.shared.tenancy.models import TenantModel; print('yes' if TenantModel.objects.filter(name='$WORKSPACE_NAME').exists() else 'no')")
+if [ "$workspace_present" = "yes" ]; then
+    for package in workflow appbuilder; do
+        if ! python manage.py ws_migrate "$WORKSPACE_NAME" --package "$package"; then
+            error "Package migration failed for $package."
+        fi
+    done
+else
+    echo "Workspace $WORKSPACE_NAME does not exist yet; deferring package migrations to bootstrap."
 fi
 
 exec python manage.py runserver 0.0.0.0:8000
