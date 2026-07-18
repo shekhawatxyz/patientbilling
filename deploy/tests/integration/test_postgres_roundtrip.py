@@ -115,7 +115,13 @@ def test_four_modules_round_trip_in_tenant_postgres(app_session, manager_session
     transition = app_session.post(f"{BASE_URL}/claims/", headers={"X-CSRFToken": csrf}, params={"view": "workflow", "action": "process_transition", "transition_name": "submit", "transition_type": "status", "object_uuid": workflow_claim})
     assert transition.json().get("success") is True, transition.text
     with _db() as connection, connection.cursor() as cursor:
-        cursor.execute("SELECT COUNT(*) FROM workflow_workflowstate WHERE object_uuid = %s", (workflow_claim,))
+        # WorkflowState is registered under the "dynamic_models" app label, and its
+        # obj_uuid column (not object_uuid, which is the WorkflowState row's own
+        # identity) references the Claim/Invoice this state belongs to.
+        cursor.execute(
+            "SELECT COUNT(*) FROM patientbilling.dynamic_models_workflowstate WHERE obj_uuid = %s",
+            (workflow_claim,),
+        )
         assert cursor.fetchone()[0] >= 1
 
     # Draft-only/manager-gated deletes, then direct Postgres absence checks.
