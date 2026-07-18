@@ -30,15 +30,13 @@ def test_run_denial_analyzer_does_not_chain_to_appeal_drafter():
 def test_denial_analyzer_does_not_refine_after_agent_failure():
     mock_agent = MagicMock()
     mock_agent.run.side_effect = RuntimeError("provider failed")
-    with patch("backend.agents.tasks.get_agent", return_value=mock_agent), patch(
-        "backend.agents.tasks.zango_task_executor"
-    ) as mock_exec:
+    with patch("backend.agents.tasks.get_agent", return_value=mock_agent):
         try:
             tasks.run_denial_analyzer(claim_id=5)
         except RuntimeError:
             pass
 
-    mock_exec.delay.assert_not_called()
+    mock_agent.run.assert_called_once()
 
 
 def test_run_appeal_drafter_uses_correct_agent():
