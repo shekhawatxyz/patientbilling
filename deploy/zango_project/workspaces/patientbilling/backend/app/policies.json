@@ -1,25 +1,40 @@
 {
-  "policies": [
-    {
-      "name": "AppViewPolicy",
-      "description": "Serves the React SPA shell — accessible by all roles including anonymous",
-      "statement": {
-        "permissions": [
-          {"name": "backend.app.views.AppView", "type": "view"},
-          {"name": "backend.app.views.RedirectAppView", "type": "view"}
-        ]
-      },
-      "roles": ["AnonymousUsers", "BillingStaff", "BillingManager"]
-    },
-    {
-      "name": "DashboardPolicy",
-      "description": "Dashboard API — restricted to BillingManager (contains PHI)",
-      "statement": {
-        "permissions": [
-          {"name": "backend.app.views.DashboardAPIView", "type": "view"}
-        ]
-      },
-      "roles": ["BillingManager"]
-    }
-  ]
+    "policies": [
+        {
+            "name": "AppViewPolicy",
+            "description": "Serves the React SPA shell \u2014 accessible by all roles including anonymous",
+            "statement": {
+                "permissions": [
+                    {
+                        "name": "backend.app.views.AppView",
+                        "type": "view"
+                    },
+                    {
+                        "name": "backend.app.views.RedirectAppView",
+                        "type": "view"
+                    }
+                ]
+            },
+            "roles": [
+                "BillingStaff",
+                "BillingManager",
+                "AnonymousUsers"
+            ]
+        },
+        {
+            "name": "DashboardPolicy",
+            "description": "Dashboard API \u2014 restricted to BillingManager (contains PHI)",
+            "statement": {
+                "permissions": [
+                    {
+                        "name": "backend.app.views.DashboardAPIView",
+                        "type": "view"
+                    }
+                ]
+            },
+            "roles": [
+                "BillingManager"
+            ]
+        }
+    ]
 }

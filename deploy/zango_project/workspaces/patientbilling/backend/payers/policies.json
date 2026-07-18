@@ -11,7 +11,10 @@
                     }
                 ]
             },
-            "roles": ["BillingStaff", "BillingManager"]
+            "roles": [
+                "BillingStaff",
+                "BillingManager"
+            ]
         }
     ]
 }
