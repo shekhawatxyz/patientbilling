@@ -1,27 +1,29 @@
-#!/bin/bash
+#!/bin/sh
+
+set -eu
 
 set -a
-source /zango/.env
+. /zango/.env
 set +a
 
-if [ -z "$PLATFORM_DOMAIN_URL" ]; then
+error() {
+    echo "ERROR: $1" >&2
+    exit 1
+}
+
+if [ -z "${PLATFORM_DOMAIN_URL:-}" ]; then
     PLATFORM_DOMAIN_URL="localhost"
 fi
 
-# Install custom providers (Gemini etc.) into the Zango package before startup.
-/zango/scripts/sync_providers.sh
+# Install custom providers into the Zango package before startup.
+if ! /zango/scripts/sync_providers.sh; then
+    error "Provider synchronization failed during container startup."
+fi
 
-cd "$PROJECT_NAME" 2>/dev/null
+cd /zango
 
-if [ -d "$PROJECT_NAME" ]; then
-    echo "Restarting existing project..."
-    if [ "${UPDATE_APPS_ON_STARTUP:-true}" = "true" ]; then
-        echo "Updating apps..."
-        SINGLE_BEAT_REDIS_SERVER=redis://${REDIS_HOST}:${REDIS_PORT}/1 single-beat zango update-apps
-    fi
-else
-    cd /zango
-    zango start-project $PROJECT_NAME \
+echo "Initializing project database..."
+if ! zango start-project "$PROJECT_NAME" \
         --db_name="$POSTGRES_DB" \
         --db_user="$POSTGRES_USER" \
         --db_password="$POSTGRES_PASSWORD" \
@@ -31,8 +33,18 @@ else
         --platform_user_password="$PLATFORM_USER_PASSWORD" \
         --redis_host="$REDIS_HOST" \
         --redis_port="$REDIS_PORT" \
-        --platform_domain_url="$PLATFORM_DOMAIN_URL"
-    cd "$PROJECT_NAME"
+        --platform_domain_url="$PLATFORM_DOMAIN_URL"; then
+    error "Project initialization failed during start-project."
 fi
 
-python manage.py runserver 0.0.0.0:8000
+cd "$PROJECT_NAME" || error "Initialized project directory is unavailable."
+
+if [ "${UPDATE_APPS_ON_STARTUP:-true}" = "true" ]; then
+    echo "Updating apps..."
+    if ! SINGLE_BEAT_REDIS_SERVER="redis://${REDIS_HOST}:${REDIS_PORT}/1" \
+        single-beat zango update-apps; then
+        error "Application update failed during update-apps."
+    fi
+fi
+
+exec python manage.py runserver 0.0.0.0:8000

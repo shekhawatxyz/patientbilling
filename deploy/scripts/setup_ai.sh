@@ -215,18 +215,15 @@ else
   if [[ "$PROVIDER_SLUG" == "local_fake" ]]; then
     MONTHLY_BUDGET_USD="0.00"
   fi
-PROVIDER_RESP=$(curl -s -b "$COOKIE" -H "X-CSRFToken: $CSRF2" \
-  -H "Content-Type: application/json" \
-  -X POST "$BASE/api/v1/apps/$APP_UUID/ai/providers/" \
-  -d "{
-    \"name\": \"$PROVIDER_NAME\",
-    \"provider_slug\": \"$PROVIDER_SLUG\",
-    \"config\": {\"api_key\": \"$PROVIDER_API_KEY\"},
-    \"default_model\": \"$PROVIDER_MODEL\",
-    \"monthly_budget_usd\": $MONTHLY_BUDGET_USD
-  }")
+PROVIDER_RESP=$(
+  printf '{"name":"%s","provider_slug":"%s","config":{"api_key":"%s"},"default_model":"%s","monthly_budget_usd":%s}' \
+    "$PROVIDER_NAME" "$PROVIDER_SLUG" "$PROVIDER_API_KEY" "$PROVIDER_MODEL" "$MONTHLY_BUDGET_USD" \
+  | curl -fsS -b "$COOKIE" -H "X-CSRFToken: $CSRF2" \
+      -H "Content-Type: application/json" \
+      -X POST "$BASE/api/v1/apps/$APP_UUID/ai/providers/" \
+      --data-binary @-
+)
 fi
-echo "    Response: $PROVIDER_RESP"
 if [[ -z "$PROVIDER_ID" ]]; then
 PROVIDER_ID=$(echo "$PROVIDER_RESP" | python3 -c "
 import sys, json
@@ -237,7 +234,7 @@ print(v.get('id') or v.get('provider', {}).get('id') or '')
 fi
 
 if [[ -z "$PROVIDER_ID" ]]; then
-  echo "    Creation unclear — fetching provider list..."
+  echo "    Verifying provider creation..."
   PROVIDER_ID=$(curl -s -b "$COOKIE" "$BASE/api/v1/apps/$APP_UUID/ai/providers/" \
     | python3 -c "
 import sys, json
@@ -252,7 +249,7 @@ fi
 echo "    Provider ID: $PROVIDER_ID"
 
 if [[ -z "$PROVIDER_ID" ]]; then
-  echo "ERROR: Could not create or find $PROVIDER_NAME provider. Check the response above."
+  echo "ERROR: Could not create or find the selected provider." >&2
   exit 1
 fi
 

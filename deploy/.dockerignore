@@ -1,0 +1,17 @@
+.env
+.ai_provider_state.json
+.git
+.gitignore
+**/.pytest_cache
+**/__pycache__
+**/*.pyc
+**/node_modules
+**/reports
+**/zango-build
+zango_project/assets
+zango_project/log
+zango_project/media
+zango_project/static
+zango_project/workspaces/patientbilling/frontend/dist
+zango_project/workspaces/patientbilling/packages
+zango_project/workspaces/patientbilling/static
