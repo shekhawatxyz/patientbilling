@@ -48,7 +48,7 @@ UPDATE_APPS_ON_STARTUP=true
     )
     _write_executable(
         fake_bin / "python",
-        '#!/usr/bin/env bash\necho "python $*" >> "$TRACE_FILE"\n',
+        '#!/usr/bin/env bash\necho "python $*" >> "$TRACE_FILE"\nif [[ "$*" == *" shell -c "* ]]; then echo yes; fi\n',
     )
     _write_executable(
         fake_root / "scripts" / "sync_providers.sh",
