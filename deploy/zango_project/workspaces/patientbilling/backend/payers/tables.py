@@ -19,8 +19,18 @@ class InsurancePayerTable(ModelTable):
             "form": InsurancePayerForm,
             "roles": [],
         },
+        {"name": "Delete", "key": "delete", "description": "Delete payer", "type": "simple", "roles": ["BillingManager"]},
     ]
     table_actions = []
+
+    def can_perform_row_action_delete(self, request, obj):
+        return self.user_role.name == "BillingManager"
+
+    def process_row_action_delete(self, request, obj):
+        if self.user_role.name != "BillingManager":
+            return False, {"message": "Only BillingManager can delete payers."}
+        obj.delete()
+        return True, {"message": "Payer deleted successfully."}
 
     class Meta:
         model = InsurancePayer

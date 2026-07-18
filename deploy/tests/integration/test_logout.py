@@ -33,3 +33,6 @@ def test_frontend_logout_endpoint_accepts_post_without_trailing_slash(logout_ses
     )
 
     assert response.status_code == 204, response.text
+
+    dashboard = logout_session.get(f"{BASE_URL}/api/dashboard/", allow_redirects=False)
+    assert dashboard.status_code in (302, 401, 403), dashboard.text

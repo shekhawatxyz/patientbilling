@@ -3,6 +3,7 @@ Integration tests — claims module.
 Seam: /claims/, /payers/ HTTP endpoints plus workflow initial status.
 """
 from constants import BASE_URL
+from uuid import uuid4
 
 
 # ── shared helpers ────────────────────────────────────────────────────────────
@@ -161,3 +162,51 @@ def test_create_payer_succeeds(app_session, run_id):
     assert r.status_code == 200, r.text
     body = r.json()
     assert body.get("success") is True, body
+
+
+def test_staff_can_edit_claim_and_table_reflects_change(app_session, run_id):
+    payer_pk, patient_pk = _ensure_payer(app_session, f"edit{run_id}"), _ensure_patient(app_session, f"edit{run_id}")
+    csrf = app_session.cookies.get("csrftoken") or ""
+    created = app_session.post(f"{BASE_URL}/claims/", headers={"X-CSRFToken": csrf}, params={"form_type": "create_form"}, data={"patient": patient_pk, "payer": payer_pk, "claim_number": f"CLM-EDIT-{run_id}", "date_of_service": "2026-07-01", "diagnosis_codes": '["Z00.00"]', "total_amount": "500.00"})
+    object_uuid = created.json()["response"]["object_uuid"]
+    response = app_session.post(f"{BASE_URL}/claims/", headers={"X-CSRFToken": csrf}, params={"action_type": "row", "action_key": "edit", "form_type": "row_action_form", "object_uuid": object_uuid}, data={"patient": patient_pk, "payer": payer_pk, "claim_number": f"CLM-EDITED-{run_id}", "date_of_service": "2026-07-01", "diagnosis_codes": '["Z00.00"]', "total_amount": "600.00"})
+    assert response.status_code == 200 and response.json().get("success") is True, response.text
+    rows = app_session.get(f"{BASE_URL}/claims/", params={"view": "table", "action": "get_table_data", "page": 1, "page_size": 200}).json()["data"]
+    assert any(row.get("claim_number") == f"CLM-EDITED-{run_id}" for row in rows)
+
+
+def test_manager_can_delete_draft_claim_and_table_excludes_it(app_session, manager_session, run_id):
+    suffix = f"del{run_id}-{uuid4().hex[:8]}"
+    payer_pk, patient_pk = _ensure_payer(app_session, suffix), _ensure_patient(app_session, suffix)
+    csrf = app_session.cookies.get("csrftoken") or ""
+    created = app_session.post(f"{BASE_URL}/claims/", headers={"X-CSRFToken": csrf}, params={"form_type": "create_form"}, data={"patient": patient_pk, "payer": payer_pk, "claim_number": f"CLM-DEL-{suffix}", "date_of_service": "2026-07-01", "diagnosis_codes": '["Z00.00"]', "total_amount": "500.00"})
+    assert created.status_code == 200, created.text
+    object_uuid = created.json()["response"]["object_uuid"]
+    csrf = manager_session.cookies.get("csrftoken") or ""
+    response = manager_session.post(f"{BASE_URL}/claims/", headers={"X-CSRFToken": csrf}, params={"action_type": "row", "action_key": "delete", "object_uuid": object_uuid})
+    assert response.status_code == 200 and response.json().get("success") is True, response.text
+    rows = manager_session.get(f"{BASE_URL}/claims/", params={"view": "table", "action": "get_table_data", "page": 1, "page_size": 200}).json()["data"]
+    assert not any(str(row.get("object_uuid")) == object_uuid for row in rows)
+
+
+def test_staff_cannot_delete_claim(app_session, run_id):
+    suffix = f"staffdel{run_id}"
+    payer_pk, patient_pk = _ensure_payer(app_session, suffix), _ensure_patient(app_session, suffix)
+    csrf = app_session.cookies.get("csrftoken") or ""
+    created = app_session.post(f"{BASE_URL}/claims/", headers={"X-CSRFToken": csrf}, params={"form_type": "create_form"}, data={"patient": patient_pk, "payer": payer_pk, "claim_number": f"CLM-STAFF-DEL-{suffix}", "date_of_service": "2026-07-01", "diagnosis_codes": '["Z00.00"]', "total_amount": "500.00"})
+    object_uuid = created.json()["response"]["object_uuid"]
+    response = app_session.post(f"{BASE_URL}/claims/", params={"action_type": "row", "action_key": "delete", "object_uuid": object_uuid})
+    assert response.status_code in (400, 403, 404), response.text
+
+
+def test_manager_cannot_delete_submitted_claim(app_session, manager_session, run_id):
+    suffix = f"submitted{run_id}"
+    payer_pk, patient_pk = _ensure_payer(app_session, suffix), _ensure_patient(app_session, suffix)
+    csrf = app_session.cookies.get("csrftoken") or ""
+    created = app_session.post(f"{BASE_URL}/claims/", headers={"X-CSRFToken": csrf}, params={"form_type": "create_form"}, data={"patient": patient_pk, "payer": payer_pk, "claim_number": f"CLM-SUBMITTED-{suffix}", "date_of_service": "2026-07-01", "diagnosis_codes": '["Z00.00"]', "total_amount": "500.00"})
+    object_uuid = created.json()["response"]["object_uuid"]
+    transition = app_session.post(f"{BASE_URL}/claims/", headers={"X-CSRFToken": csrf}, params={"view": "workflow", "action": "process_transition", "transition_name": "submit", "transition_type": "status", "object_uuid": object_uuid})
+    assert transition.json().get("success") is True, transition.text
+    response = manager_session.post(f"{BASE_URL}/claims/", params={"action_type": "row", "action_key": "delete", "object_uuid": object_uuid})
+    assert response.status_code == 400, response.text
+    assert "Only draft claims" in response.json().get("response", {}).get("message", "")

@@ -22,8 +22,18 @@ class PatientTable(ModelTable):
             "form": PatientForm,
             "roles": [],
         },
+        {"name": "Delete", "key": "delete", "description": "Delete patient record", "type": "simple", "roles": ["BillingManager"]},
     ]
     table_actions = []
+
+    def can_perform_row_action_delete(self, request, obj):
+        return self.user_role.name == "BillingManager"
+
+    def process_row_action_delete(self, request, obj):
+        if self.user_role.name != "BillingManager":
+            return False, {"message": "Only BillingManager can delete patients."}
+        obj.delete()
+        return True, {"message": "Patient deleted successfully."}
 
     class Meta:
         model = Patient
