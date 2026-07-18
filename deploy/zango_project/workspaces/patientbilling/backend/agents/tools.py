@@ -13,9 +13,6 @@ _current_workflow_transaction_id: ContextVar[str | None] = ContextVar(
 _current_ai_write_result: ContextVar[dict | None] = ContextVar(
     "_current_ai_write_result", default=None
 )
-_current_appeal_refinement: ContextVar[bool] = ContextVar(
-    "_current_appeal_refinement", default=False
-)
 
 
 def _mark_untrusted_text(label: str, value: str) -> str:
@@ -121,18 +118,6 @@ def update_claim_ai_result(
 
         with transaction.atomic():
             claim = Claim.objects.get(id=int(claim_id))
-            if (
-                field == "ai_appeal_draft"
-                and not _current_appeal_refinement.get()
-                and claim.ai_denial_analysis is not None
-            ):
-                logger.info(
-                    "Discarding initial appeal write for claim %s because denial analysis is available",
-                    claim_id,
-                )
-                result = {"updated": None, "stale": True}
-                _current_ai_write_result.set(result)
-                return result
             claim_content_type = ContentType.objects.get_for_model(Claim)
             workflow_state = (
                 WorkflowState.objects.select_for_update()
