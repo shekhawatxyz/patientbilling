@@ -378,8 +378,8 @@ curl -fsS -b "$COOKIE" -H "X-CSRFToken: $CSRF2" -H "Content-Type: application/js
   }" >/dev/null
 fi
 
-if [[ "$PROVIDER_SLUG" == "local_fake" ]]; then
-  echo "==> Repointing the three agents to local_fake for this plumbing session..."
+if [[ "$PROVIDER_SLUG" != "restore" ]]; then
+  echo "==> Repointing the three agents to $PROVIDER_SLUG..."
   AGENTS=$(curl -s -b "$COOKIE" "$BASE/api/v1/apps/$APP_UUID/ai/agents/")
   while IFS=$'\t' read -r agent_id agent_name; do
     curl -fsS -b "$COOKIE" -H "X-CSRFToken: $CSRF2" -H "Content-Type: application/json" \
