@@ -41,6 +41,7 @@ services:
       - .:/zango/
     healthcheck:
       test: ["CMD-SHELL", "netstat -ltn | grep -q 8000"]
+      start_period: 120s
       timeout: 5s
       retries: 3
 
