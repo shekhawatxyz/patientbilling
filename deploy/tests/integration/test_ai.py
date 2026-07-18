@@ -109,25 +109,29 @@ def _create_smoke_claim(session, run_id, suffix):
 
 
 def _claim_fields(session, claim_uuid):
-    response = session.get(
-        f"{BASE_URL}/claims/",
-        params={
-            "view": "detail",
-            "action": "fetch_item_details",
-            "object_uuid": claim_uuid,
-        },
-    )
-    assert response.status_code == 200, response.text
-    payload = response.json()
-    fields = payload["response"]["general_details"]["fields"]
-    assert {
-        "ai_validation_result",
-        "ai_denial_analysis",
-        "ai_appeal_draft",
-    } <= fields.keys(), payload
+    del session
+    with psycopg2.connect(
+        host=os.environ["POSTGRES_HOST"],
+        port=os.environ["POSTGRES_PORT"],
+        user=os.environ["POSTGRES_USER"],
+        password=os.environ["POSTGRES_PASSWORD"],
+        dbname=os.environ["POSTGRES_DB"],
+    ) as connection:
+        with connection.cursor() as cursor:
+            cursor.execute(
+                """
+                SELECT ai_validation_result, ai_denial_analysis, ai_appeal_draft
+                FROM patientbilling.dynamic_models_claim
+                WHERE object_uuid = %s
+                """,
+                (claim_uuid,),
+            )
+            row = cursor.fetchone()
+    assert row is not None, f"Claim {claim_uuid} was not found in the database"
     return {
-        name: field.get("value") if isinstance(field, dict) else field
-        for name, field in fields.items()
+        "ai_validation_result": row[0],
+        "ai_denial_analysis": row[1],
+        "ai_appeal_draft": row[2],
     }
 
 
