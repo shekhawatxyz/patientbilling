@@ -112,20 +112,23 @@ def _claim_fields(session, claim_uuid):
     response = session.get(
         f"{BASE_URL}/claims/",
         params={
-            "view": "table",
-            "action": "get_table_data",
-            "page": 1,
-            "page_size": 200,
+            "view": "detail",
+            "action": "fetch_item_details",
+            "object_uuid": claim_uuid,
         },
     )
     assert response.status_code == 200, response.text
-    rows = response.json().get("data", [])
-    row = next(
-        (row for row in rows if str(row.get("object_uuid")) == str(claim_uuid)),
-        None,
-    )
-    assert row is not None, f"Claim {claim_uuid} was not found in table response"
-    return row
+    payload = response.json()
+    fields = payload["response"]["general_details"]["fields"]
+    assert {
+        "ai_validation_result",
+        "ai_denial_analysis",
+        "ai_appeal_draft",
+    } <= fields.keys(), payload
+    return {
+        name: field.get("value") if isinstance(field, dict) else field
+        for name, field in fields.items()
+    }
 
 
 def _decoded(value):
