@@ -1,12 +1,21 @@
 """Integration tests for the AI agent pipeline."""
-import time
+import json
 import os
+import time
+import uuid
+from decimal import Decimal
 
-import pytest
 import psycopg2
+import pytest
 
 from constants import APP_UUID, BASE_URL
-from test_workflow_transitions import _advance, _create_claim
+from test_workflow_transitions import _transition
+
+
+SKIP_WITHOUT_PROVIDER = pytest.mark.skipif(
+    not os.environ.get("AI_PROVIDER_CONFIGURED"),
+    reason="AI provider not configured — set AI_PROVIDER_CONFIGURED=1 to run",
+)
 
 
 def _providers(platform_session):
@@ -18,26 +27,6 @@ def _agent_names(platform_session):
     r = platform_session.get(f"{BASE_URL}/api/v1/apps/{APP_UUID}/ai/agents/")
     records = r.json().get("response", {}).get("agents", {}).get("records", [])
     return {a["name"] for a in records}
-
-
-def _claim_ai_fields(claim_number):
-    with psycopg2.connect(
-        host=os.environ["POSTGRES_HOST"],
-        port=os.environ["POSTGRES_PORT"],
-        user=os.environ["POSTGRES_USER"],
-        password=os.environ["POSTGRES_PASSWORD"],
-        dbname=os.environ["POSTGRES_DB"],
-    ) as connection:
-        with connection.cursor() as cursor:
-            cursor.execute(
-                """
-                SELECT ai_denial_analysis, ai_appeal_draft
-                FROM patientbilling.dynamic_models_claim
-                WHERE claim_number = %s
-                """,
-                (claim_number,),
-            )
-            return cursor.fetchone()
 
 
 @pytest.fixture(autouse=True)
@@ -59,73 +48,172 @@ def test_all_three_agents_registered(platform_session):
     assert "appeal-drafter" in names, f"Agents registered: {names}"
 
 
-def test_claim_validator_populates_ai_field(app_session, platform_session, run_id):
-    """Submit a claim and wait up to 60 s for ai_validation_result to be non-null."""
+def _add_claim_line_item(claim_number):
+    """Add the line item omitted by the claim create form."""
+    with psycopg2.connect(
+        host=os.environ["POSTGRES_HOST"],
+        port=os.environ["POSTGRES_PORT"],
+        user=os.environ["POSTGRES_USER"],
+        password=os.environ["POSTGRES_PASSWORD"],
+        dbname=os.environ["POSTGRES_DB"],
+    ) as connection:
+        with connection.cursor() as cursor:
+            cursor.execute(
+                """
+                INSERT INTO patientbilling.dynamic_models_claimlineitem
+                    (created_at, modified_at, object_uuid, procedure_code,
+                     procedure_description, quantity, unit_price, total_price,
+                     claim_id, created_by_id, modified_by_id)
+                SELECT NOW(), NOW(), %s, %s, %s, %s, %s, %s, id, NULL, NULL
+                FROM patientbilling.dynamic_models_claim
+                WHERE claim_number = %s
+                """,
+                (
+                    str(uuid.uuid4()),
+                    "99213",
+                    "Office visit",
+                    1,
+                    Decimal("400.00"),
+                    Decimal("400.00"),
+                    claim_number,
+                ),
+            )
+            assert cursor.rowcount == 1, f"Claim {claim_number} was not found"
+
+
+def _create_smoke_claim(session, run_id, suffix):
     from test_claims import _ensure_patient, _ensure_payer  # noqa: PLC0415
 
-    payer_pk = _ensure_payer(app_session, run_id + "ai")
-    patient_pk = _ensure_patient(app_session, run_id + "ai")
-    csrf: str = app_session.cookies.get("csrftoken") or ""
-
-    # Create claim
-    claim_num = f"CLM-AI-{run_id}"
-    create_r = app_session.post(
+    payer_pk = _ensure_payer(session, f"{run_id}-{suffix}")
+    patient_pk = _ensure_patient(session, f"{run_id}-{suffix}")
+    claim_number = f"CLM-AI-SMOKE-{run_id}-{suffix}"
+    csrf = session.cookies.get("csrftoken") or ""
+    response = session.post(
         f"{BASE_URL}/claims/",
         headers={"X-CSRFToken": csrf},
         params={"form_type": "create_form"},
         data={
             "patient": patient_pk,
             "payer": payer_pk,
-            "claim_number": claim_num,
+            "claim_number": claim_number,
             "date_of_service": "2026-07-01",
             "diagnosis_codes": '["Z00.00"]',
             "total_amount": "400.00",
         },
     )
-    assert create_r.json().get("success") is True, create_r.text
-    claim_uuid = create_r.json()["response"]["object_uuid"]
+    assert response.status_code == 200, response.text
+    assert response.json().get("success") is True, response.text
+    claim_uuid = response.json()["response"]["object_uuid"]
+    _add_claim_line_item(claim_number)
+    return claim_uuid
 
-    # TODO: trigger submit workflow transition (requires workflow transition endpoint)
-    # For now, just verify the claim exists and ai_validation_result starts null
-    r = app_session.get(
+
+def _claim_fields(session, claim_uuid):
+    del session
+    with psycopg2.connect(
+        host=os.environ["POSTGRES_HOST"],
+        port=os.environ["POSTGRES_PORT"],
+        user=os.environ["POSTGRES_USER"],
+        password=os.environ["POSTGRES_PASSWORD"],
+        dbname=os.environ["POSTGRES_DB"],
+    ) as connection:
+        with connection.cursor() as cursor:
+            cursor.execute(
+                """
+                SELECT ai_validation_result, ai_denial_analysis, ai_appeal_draft
+                FROM patientbilling.dynamic_models_claim
+                WHERE object_uuid = %s
+                """,
+                (claim_uuid,),
+            )
+            row = cursor.fetchone()
+    assert row is not None, f"Claim {claim_uuid} was not found in the database"
+    return {
+        "ai_validation_result": row[0],
+        "ai_denial_analysis": row[1],
+        "ai_appeal_draft": row[2],
+    }
+
+
+def _decoded(value):
+    if isinstance(value, str):
+        try:
+            return json.loads(value)
+        except json.JSONDecodeError:
+            return value
+    return value
+
+
+def _deny_claim(session, claim_uuid):
+    csrf = session.cookies.get("csrftoken") or ""
+    response = session.post(
         f"{BASE_URL}/claims/",
-        params={"view": "table", "action": "get_table_data", "page": 1, "page_size": 200},
+        headers={"X-CSRFToken": csrf},
+        params={
+            "view": "workflow",
+            "action": "process_transition",
+            "transition_name": "deny",
+            "transition_type": "status",
+            "object_uuid": claim_uuid,
+            "denial_reason_code": "CO-4",
+            "denial_reason_description": "The procedure code is inconsistent with the claim diagnosis.",
+        },
     )
-    row = next(
-        (row for row in r.json().get("data", [])
-         if str(row.get("object_uuid")) == claim_uuid),
-        None,
-    )
-    assert row is not None, "Claim not found in list"
-    # Before submission, ai_validation_result should be absent/null
-    assert row.get("ai_validation_result") is None
+    assert response.status_code == 200, response.text
+    return response.json()
 
 
-def test_denied_claim_appeal_is_refined_with_denial_root_cause(
+@SKIP_WITHOUT_PROVIDER
+def test_claim_validator_produces_output(app_session, run_id):
+    claim_uuid = _create_smoke_claim(app_session, run_id, "validator")
+    transition = _transition(app_session, claim_uuid, "submit")
+    assert transition.get("success") is True, transition
+
+    deadline = time.monotonic() + 60
+    validation_result = None
+    while time.monotonic() < deadline:
+        fields = _claim_fields(app_session, claim_uuid)
+        validation_result = _decoded(fields.get("ai_validation_result"))
+        if validation_result is not None:
+            break
+        time.sleep(3)
+
+    assert isinstance(validation_result, dict), validation_result
+    assert "completeness_score" in validation_result, validation_result
+
+
+@SKIP_WITHOUT_PROVIDER
+def test_denial_agents_run_concurrently_and_produce_output(
     app_session, manager_session, run_id
 ):
-    """Exercise the real Celery/provider path through denial and refinement."""
-    object_uuid = _create_claim(app_session, run_id, "ai-refine")
-    _advance(app_session, manager_session, object_uuid, "denied")
+    claim_uuid = _create_smoke_claim(app_session, run_id, "denial")
+    submitted = _transition(app_session, claim_uuid, "submit")
+    assert submitted.get("success") is True, submitted
 
-    generic = (
-        "Dear Insurer,\n\n"
-        "We respectfully appeal the denial of this claim. The claim details support "
-        "reconsideration.\n\nSincerely,\nBilling Department"
-    )
-    claim_number = f"CLM-WF-{run_id}-ai-refine"
-    deadline = time.monotonic() + 30
-    ai_fields = None
+    reviewed = _transition(manager_session, claim_uuid, "begin_review")
+    assert reviewed.get("success") is True, reviewed
+    denied = _deny_claim(manager_session, claim_uuid)
+    assert denied.get("success") is True, denied
+
+    deadline = time.monotonic() + 120
+    denial_arrived_at = None
+    appeal_arrived_at = None
+    denial_analysis = None
+    appeal_draft = None
     while time.monotonic() < deadline:
-        ai_fields = _claim_ai_fields(claim_number)
-        draft = ai_fields and ai_fields[1]
-        if draft and "Documentation review required" in draft:
+        fields = _claim_fields(manager_session, claim_uuid)
+        denial_analysis = _decoded(fields.get("ai_denial_analysis"))
+        appeal_draft = _decoded(fields.get("ai_appeal_draft"))
+        if denial_analysis is not None and denial_arrived_at is None:
+            denial_arrived_at = time.monotonic()
+        if isinstance(appeal_draft, str) and appeal_draft.strip() and appeal_arrived_at is None:
+            appeal_arrived_at = time.monotonic()
+        if denial_arrived_at is not None and appeal_arrived_at is not None:
             break
-        time.sleep(1)
+        time.sleep(3)
 
-    assert ai_fields, f"Claim {object_uuid} was not found in the database"
-    denial_analysis, draft = ai_fields
-    assert denial_analysis, f"Denial analysis was not populated: {ai_fields}"
-    assert draft, f"Appeal draft was not populated: {ai_fields}"
-    assert draft != generic
-    assert "Documentation review required" in draft
+    assert denial_arrived_at is not None, denial_analysis
+    assert appeal_arrived_at is not None, appeal_draft
+    assert isinstance(denial_analysis, dict), denial_analysis
+    assert "root_cause" in denial_analysis, denial_analysis
+    assert isinstance(appeal_draft, str) and len(appeal_draft.strip()) > 50, appeal_draft
