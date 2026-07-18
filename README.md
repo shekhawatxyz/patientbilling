@@ -56,6 +56,8 @@ sg docker -c "docker compose -f deploy/docker_compose.yml up -d"
 bash deploy/scripts/bootstrap_demo.sh
 ```
 
+Compare env variable names without printing values: `bash deploy/scripts/safe_env_diff.sh`.
+
 Open the app at <http://patientbilling.localhost:8000/app>.
 
 The platform admin panel is at <http://localhost:8000/platform>.
