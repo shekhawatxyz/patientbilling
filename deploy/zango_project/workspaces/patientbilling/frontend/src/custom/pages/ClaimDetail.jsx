@@ -35,9 +35,25 @@ const ScoreBadge = ({ score }) => {
   );
 };
 
+const FakeProviderBanner = () => (
+  <div style={{
+    marginBottom: 24,
+    padding: '12px 16px',
+    border: '1px solid #fcd34d',
+    borderRadius: 8,
+    background: '#fffbeb',
+    color: '#92400e',
+    fontSize: 13,
+    fontWeight: 500,
+  }}>
+    AI Insights are running on a local deterministic demo provider, not a real LLM.
+  </div>
+);
+
 const AIInsightsTab = ({ claimId, objectUuid, apiEndpoint }) => {
   const [claim, setClaim] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [isFakeProvider, setIsFakeProvider] = useState(false);
   const intervalRef = useRef(null);
 
   const fetchClaim = () => {
@@ -62,6 +78,10 @@ const AIInsightsTab = ({ claimId, objectUuid, apiEndpoint }) => {
 
   useEffect(() => {
     fetchClaim();
+    fetch('/api/dashboard/')
+      .then((r) => r.json())
+      .then((d) => setIsFakeProvider(d?.response?.ai_provider_is_fake === true))
+      .catch(() => {});
     intervalRef.current = setInterval(fetchClaim, 5000);
     return () => {
       if (intervalRef.current) clearInterval(intervalRef.current);
@@ -80,6 +100,8 @@ const AIInsightsTab = ({ claimId, objectUuid, apiEndpoint }) => {
 
   return (
     <div style={{ padding: 24 }}>
+      {isFakeProvider && <FakeProviderBanner />}
+
       {!aiValidation && !aiDenial && !aiAppeal && (
         <div style={{ color: '#6b7280', fontSize: 13, marginBottom: 16 }}>
           AI analysis is running… refreshing every 5s

@@ -14,6 +14,21 @@ const StatCard = ({ label, value, color }) => (
   </div>
 );
 
+const FakeProviderBanner = () => (
+  <div style={{
+    marginBottom: 24,
+    padding: '12px 16px',
+    border: '1px solid #fcd34d',
+    borderRadius: 8,
+    background: '#fffbeb',
+    color: '#92400e',
+    fontSize: 13,
+    fontWeight: 500,
+  }}>
+    AI Insights are running on a local deterministic demo provider, not a real LLM.
+  </div>
+);
+
 const Dashboard = () => {
   const [data, setData] = useState(null);
   const [error, setError] = useState(null);
@@ -44,6 +59,8 @@ const Dashboard = () => {
       <h1 style={{ fontSize: 22, fontWeight: 700, marginBottom: 24, color: '#111827' }}>
         Billing Dashboard
       </h1>
+
+      {data.ai_provider_is_fake && <FakeProviderBanner />}
 
       <div style={{ display: 'flex', gap: 16, marginBottom: 32, flexWrap: 'wrap' }}>
         <StatCard label="Total Claims" value={data.total_claims} />

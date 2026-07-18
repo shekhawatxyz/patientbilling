@@ -26,6 +26,14 @@ def test_dashboard_api_has_kpi_fields(manager_session):
         assert key in response, f"Missing key '{key}' in dashboard response: {response}"
 
 
+def test_dashboard_api_reports_fake_ai_provider(manager_session):
+    data = manager_session.get(f"{BASE_URL}/api/dashboard/").json()
+    response = data.get("response", {})
+    assert isinstance(response.get("ai_provider_is_fake"), bool), (
+        f"ai_provider_is_fake should be a boolean: {response}"
+    )
+
+
 def test_dashboard_pending_ai_tasks_is_nonnegative(manager_session):
     data = manager_session.get(f"{BASE_URL}/api/dashboard/").json()
     pending_ai_tasks = data.get("response", {}).get("pending_ai_tasks", -1)

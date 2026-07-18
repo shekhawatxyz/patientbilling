@@ -21,6 +21,12 @@ class DashboardAPIView(View):
 
         from _workspaces.backend.claims.models import Claim
         from _workspaces.packages.workflow.base.models import WorkflowState
+        from zango.apps.ai.models import AppLLMAgent
+
+        active_provider_slugs = AppLLMAgent.objects.filter(
+            name__in=["claim-validator", "denial-analyzer", "appeal-drafter"],
+        ).values_list("provider__provider_slug", flat=True)
+        ai_provider_is_fake = any(slug == "local_fake" for slug in active_provider_slugs)
 
         claim_ct = ContentType.objects.get_for_model(Claim)
 
@@ -87,6 +93,7 @@ class DashboardAPIView(View):
                 "denial_rate": denial_rate,
                 "pending_revenue": float(pending_revenue),
                 "pending_ai_tasks": pending_ai_tasks,
+                "ai_provider_is_fake": ai_provider_is_fake,
                 "recent_claims": recent_claims,
             },
         })
