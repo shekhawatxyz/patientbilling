@@ -69,7 +69,12 @@ compose exec -T app bash -lc "cd /zango && zango start-project zango_project \
   --redis_host='$REDIS_HOST' --redis_port='$REDIS_PORT' --platform_domain_url=localhost" >/dev/null
 compose exec -T app bash -lc "cd /zango/zango_project && python manage.py shell -c 'import uuid; from django_tenants.utils import schema_exists; from zango.apps.shared.tenancy.models import TenantModel, Domain; tenant, created = TenantModel.objects.get_or_create(name=\"patientbilling\", defaults={\"uuid\": uuid.UUID(\"$APP_UUID\"), \"schema_name\": \"patientbilling\", \"description\": \"Patient Billing demo\", \"tenant_type\": \"app\", \"status\": \"deployed\"}); tenant.status = \"deployed\"; tenant.save(); Domain.objects.update_or_create(domain=\"$APP_HOST\", defaults={\"tenant\": tenant, \"is_primary\": True}); schema_exists(tenant.schema_name) or tenant.create_schema(check_if_exists=True)'" >/dev/null
 compose exec -T app bash -lc 'cd /zango/zango_project && SINGLE_BEAT_REDIS_SERVER=redis://redis:6379/1 single-beat zango update-apps' >/dev/null
-compose exec -T app bash -c 'cd zango_project && python manage.py ws_migrate --package appbuilder patientbilling' >/dev/null
+
+# update-apps installs the package migrations that own these shared dynamic
+# tables. The committed workspace migration records the same models in Django's
+# state, so only fake it after proving every expected table really exists.
+compose exec -T app bash -lc 'cd /zango/zango_project && python manage.py shell -c '\''from django.db import connection; expected = {"dynamic_models_workflowfile", "dynamic_models_workflowtransaction", "dynamic_models_workflowtransactionfile", "dynamic_models_workflowstate", "dynamic_models_exportjobmodel", "dynamic_models_datauploadmodel", "dynamic_models_approutesmodel", "dynamic_models_appmenumodel"}; existing = set(connection.introspection.table_names()); missing = expected - existing; assert not missing, f"Package migrations did not create required tables: {sorted(missing)}"'\''' >/dev/null
+compose exec -T app bash -lc 'cd /zango/zango_project && python manage.py ws_migrate --fake dynamic_models 0004_workflowfile_workflowtransaction_and_more patientbilling' >/dev/null
 
 echo "==> Waiting for the app to be ready..."
 for attempt in $(seq 1 120); do

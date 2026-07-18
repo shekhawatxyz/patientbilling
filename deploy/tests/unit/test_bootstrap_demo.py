@@ -20,6 +20,8 @@ def test_bootstrap_demo_contains_idempotent_zero_key_flow():
         "BillingStaff",
         "BillingManager",
         "ws_migrate",
+        "Package migrations did not create required tables",
+        "--fake dynamic_models 0004_workflowfile_workflowtransaction_and_more",
         "action=get_routes",
         "action=save_routes",
         "action=get_configs",
