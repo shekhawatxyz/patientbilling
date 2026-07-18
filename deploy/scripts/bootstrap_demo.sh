@@ -69,6 +69,13 @@ compose exec -T app bash -lc "cd /zango && zango start-project zango_project \
   --redis_host='$REDIS_HOST' --redis_port='$REDIS_PORT' --platform_domain_url=localhost" >/dev/null
 compose exec -T app bash -lc "cd /zango/zango_project && python manage.py shell -c 'import uuid; from django_tenants.utils import schema_exists; from zango.apps.shared.tenancy.models import TenantModel, Domain; tenant, created = TenantModel.objects.get_or_create(name=\"patientbilling\", defaults={\"uuid\": uuid.UUID(\"$APP_UUID\"), \"schema_name\": \"patientbilling\", \"description\": \"Patient Billing demo\", \"tenant_type\": \"app\", \"status\": \"deployed\"}); tenant.status = \"deployed\"; tenant.save(); Domain.objects.update_or_create(domain=\"$APP_HOST\", defaults={\"tenant\": tenant, \"is_primary\": True}); schema_exists(tenant.schema_name) or tenant.create_schema(check_if_exists=True)'" >/dev/null
 
+# update-apps does not reliably apply package migrations to a newly-created tenant.
+# WorkflowState and AppRoutesModel are owned by these packages, so activate their
+# migrations explicitly before any bootstrap API calls can read those tables.
+for package in workflow appbuilder; do
+  compose exec -T app bash -lc "cd /zango/zango_project && python manage.py ws_migrate patientbilling --package $package" >/dev/null
+done
+
 compose exec -T app bash -lc 'cd /zango/zango_project && SINGLE_BEAT_REDIS_SERVER=redis://redis:6379/1 single-beat zango update-apps' >/dev/null
 
 echo "==> Waiting for the app to be ready..."

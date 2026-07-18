@@ -20,6 +20,7 @@ def test_bootstrap_demo_contains_idempotent_zero_key_flow():
         "BillingStaff",
         "BillingManager",
         "zango start-project",
+        "ws_migrate patientbilling --package $package",
         "zango update-apps",
         "action=get_routes",
         "action=save_routes",
