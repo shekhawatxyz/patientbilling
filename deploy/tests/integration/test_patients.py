@@ -104,13 +104,20 @@ def test_staff_can_edit_patient_and_table_reflects_change(app_session, run_id):
     assert any(row.get("first_name") == f"Edited{run_id}" for row in _patient_rows(app_session))
 
 
-def test_staff_can_delete_patient_and_table_excludes_it(app_session, run_id):
+def test_manager_can_delete_patient_and_table_excludes_it(app_session, manager_session, run_id):
     object_uuid = _patient(app_session, f"delete{run_id}")
-    csrf = app_session.cookies.get("csrftoken") or ""
-    response = app_session.post(
+    csrf = manager_session.cookies.get("csrftoken") or ""
+    response = manager_session.post(
         f"{BASE_URL}/patients/", headers={"X-CSRFToken": csrf},
         params={"action_type": "row", "action_key": "delete", "object_uuid": object_uuid},
     )
     assert response.status_code == 200, response.text
     assert response.json().get("success") is True, response.text
-    assert not any(str(row.get("object_uuid")) == object_uuid for row in _patient_rows(app_session))
+    assert not any(str(row.get("object_uuid")) == object_uuid for row in _patient_rows(manager_session))
+
+
+def test_staff_cannot_delete_patient(app_session, run_id):
+    object_uuid = _patient(app_session, f"staff-delete{run_id}")
+    csrf = app_session.cookies.get("csrftoken") or ""
+    response = app_session.post(f"{BASE_URL}/patients/", headers={"X-CSRFToken": csrf}, params={"action_type": "row", "action_key": "delete", "object_uuid": object_uuid})
+    assert response.status_code in (400, 403), response.text
