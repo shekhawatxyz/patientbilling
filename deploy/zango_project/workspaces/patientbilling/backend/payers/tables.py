@@ -19,8 +19,13 @@ class InsurancePayerTable(ModelTable):
             "form": InsurancePayerForm,
             "roles": [],
         },
+        {"name": "Delete", "key": "delete", "description": "Delete payer", "type": "simple", "roles": []},
     ]
     table_actions = []
+
+    def process_row_action_delete(self, request, obj):
+        obj.delete()
+        return True, {"message": "Payer deleted successfully."}
 
     class Meta:
         model = InsurancePayer

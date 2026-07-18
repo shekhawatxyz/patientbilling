@@ -3,6 +3,7 @@ Integration tests — invoices module.
 Seam: /invoices/ HTTP endpoints (list, create, payment create).
 """
 from constants import BASE_URL
+from uuid import uuid4
 
 
 def _ensure_patient(app_session, run_id):
@@ -136,6 +137,20 @@ def test_payments_list_returns_200(app_session):
     )
     # Either 200 (payments endpoint exists) or 404 is acceptable here
     assert r.status_code in (200, 404), r.text
+
+
+def test_staff_can_delete_invoice_and_table_excludes_it(app_session, run_id):
+    suffix = f"del{run_id}-{uuid4().hex[:8]}"
+    patient_pk = _ensure_patient(app_session, suffix)
+    csrf = app_session.cookies.get("csrftoken") or ""
+    created = app_session.post(f"{BASE_URL}/invoices/", headers={"X-CSRFToken": csrf}, params={"form_type": "create_form"}, data={"patient": patient_pk, "invoice_number": f"INV-DEL-{suffix}", "date_issued": "2026-07-01", "due_date": "2026-07-31", "total_amount": "350.00"})
+    assert created.status_code == 200, created.text
+    object_uuid = created.json()["response"]["object_uuid"]
+    response = app_session.post(f"{BASE_URL}/invoices/", headers={"X-CSRFToken": csrf}, params={"action_type": "row", "action_key": "delete", "object_uuid": object_uuid})
+    assert response.status_code == 200, response.text
+    assert response.json().get("success") is True, response.text
+    rows = app_session.get(f"{BASE_URL}/invoices/", params={"view": "table", "action": "get_table_data", "page": 1, "page_size": 200}).json()["data"]
+    assert not any(str(row.get("object_uuid")) == object_uuid for row in rows)
 
 
 # ── workflow transition tests ─────────────────────────────────────────────────

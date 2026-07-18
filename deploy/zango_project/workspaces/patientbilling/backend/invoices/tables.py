@@ -22,7 +22,12 @@ class InvoiceTable(ModelTable):
             "form": InvoiceForm,
             "roles": [],
         },
+        {"name": "Delete", "key": "delete", "description": "Delete invoice", "type": "simple", "roles": []},
     ]
+
+    def process_row_action_delete(self, request, obj):
+        obj.delete()
+        return True, {"message": "Invoice deleted successfully."}
 
     class Meta:
         model = Invoice

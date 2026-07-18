@@ -19,8 +19,13 @@ class ClaimTable(ModelTable):
             "form": ClaimForm,
             "roles": [],
         },
+        {"name": "Delete", "key": "delete", "description": "Delete claim", "type": "simple", "roles": []},
     ]
     table_actions = []
+
+    def process_row_action_delete(self, request, obj):
+        obj.delete()
+        return True, {"message": "Claim deleted successfully."}
 
     class Meta:
         model = Claim
