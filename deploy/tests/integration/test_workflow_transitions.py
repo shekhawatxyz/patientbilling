@@ -165,3 +165,53 @@ def test_staff_cannot_approve_claim(app_session, manager_session, run_id):
     assert body.get("success") is not True, (
         f"Staff should NOT be able to approve but got: {body}"
     )
+
+
+def test_manager_can_complete_approved_claim(app_session, manager_session, run_id):
+    obj_uuid = _create_claim(app_session, run_id, "approve-close")
+    for session, transition, expected in (
+        (app_session, "submit", "submitted"),
+        (manager_session, "begin_review", "under_review"),
+        (manager_session, "approve", "approved"),
+        (manager_session, "close", "closed"),
+    ):
+        body = _transition(session, obj_uuid, transition)
+        assert body.get("success") is True, f"{transition} failed: {body}"
+        assert expected.replace("_", " ") in _get_status_label(session, obj_uuid)
+
+
+def test_manager_can_reopen_denied_claim(app_session, manager_session, run_id):
+    obj_uuid = _create_claim(app_session, run_id, "reopen")
+    _advance(app_session, manager_session, obj_uuid, "denied")
+    body = _transition(manager_session, obj_uuid, "reopen")
+    assert body.get("success") is True, body
+    assert "review" in _get_status_label(manager_session, obj_uuid)
+
+
+def test_manager_can_close_approved_appeal(app_session, manager_session, run_id):
+    obj_uuid = _create_claim(app_session, run_id, "appeal-close")
+    _advance(app_session, manager_session, obj_uuid, "appealed")
+    for transition, expected in (("approve_appeal", "approved"), ("close", "closed")):
+        body = _transition(manager_session, obj_uuid, transition)
+        assert body.get("success") is True, f"{transition} failed: {body}"
+        assert expected in _get_status_label(manager_session, obj_uuid)
+
+
+def test_manager_can_close_appealed_claim_directly(app_session, manager_session, run_id):
+    obj_uuid = _create_claim(app_session, run_id, "appealed-direct-close")
+    _advance(app_session, manager_session, obj_uuid, "appealed")
+    body = _transition(manager_session, obj_uuid, "close_from_appealed")
+    assert body.get("success") is True, body
+    assert "closed" in _get_status_label(manager_session, obj_uuid)
+
+
+def test_staff_cannot_use_manager_only_claim_transitions(app_session, manager_session, run_id):
+    cases = (("reopen", "denied"), ("approve_appeal", "appealed"), ("close", "approved"),
+             ("close_from_appealed", "appealed"), ("deny", "under_review"))
+    for transition, state in cases:
+        obj_uuid = _create_claim(app_session, run_id, f"staff-{transition}")
+        _advance(app_session, manager_session, obj_uuid, state)
+        before = _get_status_label(app_session, obj_uuid)
+        body = _transition(app_session, obj_uuid, transition)
+        assert body.get("success") is not True, f"Staff unexpectedly ran {transition}: {body}"
+        assert _get_status_label(app_session, obj_uuid) == before

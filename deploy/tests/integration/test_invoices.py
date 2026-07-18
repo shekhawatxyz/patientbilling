@@ -162,7 +162,8 @@ def test_manager_cannot_delete_sent_invoice(app_session, manager_session, run_id
     object_uuid = created.json()["response"]["object_uuid"]
     transition = app_session.post(f"{BASE_URL}/invoices/", headers={"X-CSRFToken": csrf}, params={"view": "workflow", "action": "process_transition", "transition_name": "send", "transition_type": "status", "object_uuid": object_uuid})
     assert transition.json().get("success") is True, transition.text
-    response = manager_session.post(f"{BASE_URL}/invoices/", params={"action_type": "row", "action_key": "delete", "object_uuid": object_uuid})
+    csrf = manager_session.cookies.get("csrftoken") or ""
+    response = manager_session.post(f"{BASE_URL}/invoices/", headers={"X-CSRFToken": csrf}, params={"action_type": "row", "action_key": "delete", "object_uuid": object_uuid})
     assert response.status_code == 400, response.text
     assert "Only draft invoices" in response.json().get("response", {}).get("message", "")
 
@@ -252,3 +253,41 @@ def test_manager_can_void_invoice(app_session, manager_session, run_id):
     body = _do_invoice_transition(manager_session, obj_uuid, "void")
     assert body.get("success") is True, f"void transition failed: {body}"
     assert "void" in _get_invoice_status(manager_session, obj_uuid)
+
+
+def _create_workflow_invoice(session, run_id, suffix, amount="200.00"):
+    patient_pk = _ensure_patient(session, f"{run_id}-{suffix}")
+    csrf = session.cookies.get("csrftoken") or ""
+    response = session.post(
+        f"{BASE_URL}/invoices/", headers={"X-CSRFToken": csrf},
+        params={"form_type": "create_form"},
+        data={"patient": patient_pk, "invoice_number": f"INV-WF-{run_id}-{suffix}",
+              "date_issued": "2026-07-01", "due_date": "2026-07-31", "total_amount": amount},
+    )
+    assert response.status_code == 200, response.text
+    return response.json()["response"]["object_uuid"]
+
+
+def test_invoice_payment_and_overdue_lifecycles(app_session, manager_session, run_id):
+    # Both payment branches are exercised through their transition endpoints.
+    obj_uuid = _create_workflow_invoice(app_session, run_id, "partial")
+    for transition, expected in (("send", "sent"), ("record_partial", "partially_paid")):
+        body = _do_invoice_transition(app_session, obj_uuid, transition)
+        assert body.get("success") is True, f"{transition} failed: {body}"
+        assert expected.replace("_", " ") in _get_invoice_status(app_session, obj_uuid)
+
+    overdue_uuid = _create_workflow_invoice(app_session, run_id, "overdue")
+    _do_invoice_transition(app_session, overdue_uuid, "send")
+    body = _do_invoice_transition(manager_session, overdue_uuid, "mark_overdue")
+    assert body.get("success") is True, body
+    assert "overdue" in _get_invoice_status(manager_session, overdue_uuid)
+
+
+def test_staff_cannot_mark_overdue_or_void_invoice(app_session, manager_session, run_id):
+    for transition in ("mark_overdue", "void"):
+        obj_uuid = _create_workflow_invoice(app_session, run_id, f"staff-{transition}")
+        _do_invoice_transition(app_session, obj_uuid, "send")
+        before = _get_invoice_status(app_session, obj_uuid)
+        body = _do_invoice_transition(app_session, obj_uuid, transition)
+        assert body.get("success") is not True, f"Staff unexpectedly ran {transition}: {body}"
+        assert _get_invoice_status(app_session, obj_uuid) == before
