@@ -61,6 +61,7 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+    restart: unless-stopped
 
   redis:
     image: redis
@@ -91,6 +92,7 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+    restart: unless-stopped
 
 volumes:
   dev_db:
