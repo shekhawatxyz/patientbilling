@@ -11,6 +11,14 @@ APP_UUID="496d3013-cdd0-4531-92fd-3646714463c1"
 APP_URL="http://${APP_HOST}:8000/app"
 PLATFORM_URL="${BASE_URL}/platform"
 COMPOSE_FILE="$REPO_DIR/deploy/docker_compose.yml"
+ENV_FILE="$REPO_DIR/deploy/.env"
+
+if [[ "${SKIP_FRONTEND_BUILD:-false}" == "true" ]]; then
+  echo "==> Reusing the frontend bundle built by the startup command..."
+else
+  echo "==> Building the frontend bundle..."
+  bash "$SCRIPT_DIR/build_frontend.sh"
+fi
 
 env_value() {
   local key="$1"
@@ -34,9 +42,9 @@ trap 'rm -f "$PLATFORM_COOKIE" "$CONFIG_COOKIE" "$APP_COOKIE" "$MANAGER_COOKIE"'
 
 compose() {
   if docker info >/dev/null 2>&1; then
-    docker compose -f "$COMPOSE_FILE" "$@"
+    docker compose --env-file "$ENV_FILE" -f "$COMPOSE_FILE" "$@"
   elif command -v sg >/dev/null 2>&1; then
-    local arg quoted_arg command="docker compose -f $(printf '%q' "$COMPOSE_FILE")"
+    local arg quoted_arg command="docker compose --env-file $(printf '%q' "$ENV_FILE") -f $(printf '%q' "$COMPOSE_FILE")"
     for arg in "$@"; do
       printf -v quoted_arg '%q' "$arg"
       command+=" $quoted_arg"
@@ -60,8 +68,8 @@ compose exec -T app bash -lc "cd /zango && zango start-project zango_project \
   --platform_username='$PLATFORM_USERNAME' --platform_user_password='$PLATFORM_USER_PASSWORD' \
   --redis_host='$REDIS_HOST' --redis_port='$REDIS_PORT' --platform_domain_url=localhost" >/dev/null
 compose exec -T app bash -lc "cd /zango/zango_project && python manage.py shell -c 'import uuid; from django_tenants.utils import schema_exists; from zango.apps.shared.tenancy.models import TenantModel, Domain; tenant, created = TenantModel.objects.get_or_create(name=\"patientbilling\", defaults={\"uuid\": uuid.UUID(\"$APP_UUID\"), \"schema_name\": \"patientbilling\", \"description\": \"Patient Billing demo\", \"tenant_type\": \"app\", \"status\": \"deployed\"}); tenant.status = \"deployed\"; tenant.save(); Domain.objects.update_or_create(domain=\"$APP_HOST\", defaults={\"tenant\": tenant, \"is_primary\": True}); schema_exists(tenant.schema_name) or tenant.create_schema(check_if_exists=True)'" >/dev/null
+
 compose exec -T app bash -lc 'cd /zango/zango_project && SINGLE_BEAT_REDIS_SERVER=redis://redis:6379/1 single-beat zango update-apps' >/dev/null
-compose exec -T app bash -c 'cd zango_project && python manage.py ws_migrate --package appbuilder patientbilling' >/dev/null
 
 echo "==> Waiting for the app to be ready..."
 for attempt in $(seq 1 120); do
@@ -247,6 +255,7 @@ create_menu_if_missing "$MANAGER_ROLE" "BillingManager" "$MANAGER_MENU"
 
 echo "==> Registering the zero-key local_fake AI agents..."
 LOCAL_FAKE_AI=true bash "$SCRIPT_DIR/setup_ai.sh"
+echo "    Offline AI is active; no paid provider was selected. The dashboard will identify this mode."
 
 echo "==> Waiting for the app after AI provider setup..."
 for attempt in $(seq 1 120); do

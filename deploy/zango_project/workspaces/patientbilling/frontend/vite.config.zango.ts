@@ -36,7 +36,7 @@ export default defineConfig({
       output: {
         manualChunks: undefined,
         inlineDynamicImports: true,
-        entryFileNames: `zango-app.${Date.now()}.min.js`,
+        entryFileNames: 'zango-app.min.js',
         assetFileNames: '[name][extname]',
         format: 'iife',
       },

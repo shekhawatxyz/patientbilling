@@ -18,7 +18,9 @@ class Migration(migrations.Migration):
     ]
 
     operations = [
-        migrations.CreateModel(
+        migrations.SeparateDatabaseAndState(
+            database_operations=[],
+            state_operations=[migrations.CreateModel(
             name='WorkflowFile',
             fields=[
                 ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
@@ -34,8 +36,10 @@ class Migration(migrations.Migration):
                 'abstract': False,
             },
             bases=(models.Model, zango.apps.dynamic_models.mixin.DynamicModelMixin),
-        ),
-        migrations.CreateModel(
+        )],),
+        migrations.SeparateDatabaseAndState(
+            database_operations=[],
+            state_operations=[migrations.CreateModel(
             name='WorkflowTransaction',
             fields=[
                 ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
@@ -56,8 +60,10 @@ class Migration(migrations.Migration):
                 'abstract': False,
             },
             bases=(models.Model, zango.apps.dynamic_models.mixin.DynamicModelMixin),
-        ),
-        migrations.CreateModel(
+        )],),
+        migrations.SeparateDatabaseAndState(
+            database_operations=[],
+            state_operations=[migrations.CreateModel(
             name='WorkflowTransactionFile',
             fields=[
                 ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
@@ -73,8 +79,10 @@ class Migration(migrations.Migration):
                 'abstract': False,
             },
             bases=(models.Model, zango.apps.dynamic_models.mixin.DynamicModelMixin),
-        ),
-        migrations.CreateModel(
+        )],),
+        migrations.SeparateDatabaseAndState(
+            database_operations=[],
+            state_operations=[migrations.CreateModel(
             name='WorkflowState',
             fields=[
                 ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
@@ -92,8 +100,10 @@ class Migration(migrations.Migration):
                 'abstract': False,
             },
             bases=(models.Model, zango.apps.dynamic_models.mixin.DynamicModelMixin),
-        ),
-        migrations.CreateModel(
+        )],),
+        migrations.SeparateDatabaseAndState(
+            database_operations=[],
+            state_operations=[migrations.CreateModel(
             name='ExportJobModel',
             fields=[
                 ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
@@ -114,8 +124,10 @@ class Migration(migrations.Migration):
                 'abstract': False,
             },
             bases=(models.Model, zango.apps.dynamic_models.mixin.DynamicModelMixin),
-        ),
-        migrations.CreateModel(
+        )],),
+        migrations.SeparateDatabaseAndState(
+            database_operations=[],
+            state_operations=[migrations.CreateModel(
             name='DataUploadModel',
             fields=[
                 ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
@@ -137,7 +149,7 @@ class Migration(migrations.Migration):
                 'abstract': False,
             },
             bases=(models.Model, zango.apps.dynamic_models.mixin.DynamicModelMixin),
-        ),
+        )],),
         migrations.SeparateDatabaseAndState(
             database_operations=[],
             state_operations=[migrations.CreateModel(

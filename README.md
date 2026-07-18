@@ -39,7 +39,8 @@ Under ADR-003/PAT-31, the server binds the claim ID in a `ContextVar`; the model
 ## Prerequisites
 
 - Docker and Docker Compose
-- An `/etc/hosts` entry for `patientbilling.localhost`:
+- Node.js 18+ and npm
+- An `/etc/hosts` entry for `patientbilling.localhost` (the startup script checks this):
 
   ```text
   127.0.0.1 patientbilling.localhost
@@ -47,14 +48,17 @@ Under ADR-003/PAT-31, the server binds the claim ID in a `ContextVar`; the model
 
 ## Quick start
 
-From a fresh clone:
+From a fresh clone, run one command:
 
 ```bash
+git clone -b fresh-clone-startup <repo>
 cd patientbilling
-cp deploy/.env.example deploy/.env
-sg docker -c "docker compose -f deploy/docker_compose.yml up -d"
-bash deploy/scripts/bootstrap_demo.sh
+bash deploy/scripts/start_demo.sh
 ```
+
+The command creates `deploy/.env` if needed, installs frontend dependencies from the lockfile,
+builds the bundle, starts the full Docker stack, waits for readiness, and creates the demo tenant,
+users, routes, menus, seed data, and zero-cost `local_fake` agents. It never prints `.env` values.
 
 Compare env variable names without printing values: `bash deploy/scripts/safe_env_diff.sh`.
 
@@ -73,10 +77,12 @@ Platform admin: `platform_admin@zango.dev` / `Zango@123`.
 
 ## AI setup and testing
 
-Normal tests use the deterministic `local_fake` provider and do not need an API key:
+The startup command explicitly selects the deterministic `local_fake` provider, so the demo works
+without an API key and remains offline even if a real key is present in `deploy/.env`. The dashboard
+identifies when offline AI is active. To configure AI plumbing explicitly:
 
 ```bash
-bash deploy/scripts/setup_ai.sh
+LOCAL_FAKE_AI=true bash deploy/scripts/setup_ai.sh
 bash deploy/tests/run_ai_tests.sh
 ```
 
@@ -84,7 +90,7 @@ The fake provider returns hardcoded, schema-valid outputs while exercising the s
 
 ### Using a real AI provider
 
-By default this project runs on a zero-key deterministic fake provider (`local_fake`) — no API key needed for the demo to work end-to-end. To use a real LLM instead:
+Real-provider setup is a separate, deliberate action. To use a real LLM instead:
 
 1. Add your key to `deploy/.env`: `ANTHROPIC_KEY=sk-ant-...`
 2. Run:
