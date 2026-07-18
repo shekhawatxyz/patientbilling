@@ -12,6 +12,9 @@ APP_URL="http://${APP_HOST}:8000/app"
 PLATFORM_URL="${BASE_URL}/platform"
 COMPOSE_FILE="$REPO_DIR/deploy/docker_compose.yml"
 
+echo "==> Building the frontend bundle..."
+bash "$SCRIPT_DIR/build_frontend.sh"
+
 env_value() {
   local key="$1"
   if [[ -f "$REPO_DIR/deploy/.env" ]]; then
@@ -247,6 +250,7 @@ create_menu_if_missing "$MANAGER_ROLE" "BillingManager" "$MANAGER_MENU"
 
 echo "==> Registering the zero-key local_fake AI agents..."
 LOCAL_FAKE_AI=true bash "$SCRIPT_DIR/setup_ai.sh"
+echo "    Offline AI is active; no paid provider was selected. The dashboard will identify this mode."
 
 echo "==> Waiting for the app after AI provider setup..."
 for attempt in $(seq 1 120); do

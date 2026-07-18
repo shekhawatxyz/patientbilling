@@ -39,6 +39,7 @@ Under ADR-003/PAT-31, the server binds the claim ID in a `ContextVar`; the model
 ## Prerequisites
 
 - Docker and Docker Compose
+- Node.js 18+ and npm
 - An `/etc/hosts` entry for `patientbilling.localhost`:
 
   ```text
@@ -52,6 +53,7 @@ From a fresh clone:
 ```bash
 cd patientbilling
 cp deploy/.env.example deploy/.env
+bash deploy/scripts/build_frontend.sh
 sg docker -c "docker compose -f deploy/docker_compose.yml up -d"
 bash deploy/scripts/bootstrap_demo.sh
 ```
@@ -73,7 +75,9 @@ Platform admin: `platform_admin@zango.dev` / `Zango@123`.
 
 ## AI setup and testing
 
-Normal tests use the deterministic `local_fake` provider and do not need an API key:
+The demo uses the deterministic `local_fake` provider when no real provider is explicitly
+configured, so it works without an API key. The dashboard identifies when offline AI is active.
+To configure AI plumbing explicitly:
 
 ```bash
 bash deploy/scripts/setup_ai.sh
