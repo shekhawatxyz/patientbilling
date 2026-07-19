@@ -244,6 +244,7 @@ __marimo__/
 
 # Session handoff docs (local only)
 HANDOFF.md
+DEPLOY_HANDOFF.md
 
 # Codex ticket tracker (local only)
 CODEX_TICKETS.md
