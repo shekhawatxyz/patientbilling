@@ -72,4 +72,8 @@ else
     echo "Workspace $WORKSPACE_NAME does not exist yet; deferring package migrations to bootstrap."
 fi
 
-exec python manage.py runserver 0.0.0.0:8000
+# --insecure: DEBUG=False (PAT-86) disables Django's automatic static-file
+# serving; --insecure restores it without reverting DEBUG. This is a demo-grade
+# stopgap -- the prod-grade path is Caddy `file_server`/WhiteNoise serving
+# static assets directly instead of falling through to Django (see PAT-94).
+exec python manage.py runserver --insecure 0.0.0.0:8000
