@@ -2,8 +2,13 @@
 
 set -eu
 
+ENV_FILE="/zango/.env"
+if [ "${ENV:-}" = "prod" ]; then
+    ENV_FILE="/zango/.env.prod"
+fi
+
 set -a
-. /zango/.env
+. "$ENV_FILE"
 set +a
 
 error() {

@@ -84,6 +84,14 @@ UPDATE_APPS_ON_STARTUP=true
     assert start < update < workflow_migrate < appbuilder_migrate < runserver, events
 
 
+def test_init_selects_production_environment_file_when_env_is_prod():
+    source = INIT_SCRIPT.read_text(encoding="utf-8")
+
+    assert 'if [ "${ENV:-}" = "prod" ]; then' in source
+    assert 'ENV_FILE="/zango/.env.prod"' in source
+    assert '. "$ENV_FILE"' in source
+
+
 def test_real_provider_secret_never_reaches_output_or_process_arguments(tmp_path):
     sentinel = "sentinel-" + "anthropic-key-never-leak"
     fake_bin = tmp_path / "bin"
