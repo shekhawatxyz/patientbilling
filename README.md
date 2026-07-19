@@ -173,6 +173,13 @@ moment in time, so it's best seen live via the walkthrough above rather than a s
 
 The production Compose file is a starting point, not a complete production deployment.
 
+Build the frontend bundle before starting the stack — it is not committed to the repo and
+nothing in the production image builds it automatically:
+
+```bash
+bash deploy/scripts/build_frontend.sh
+```
+
 ```bash
 cp deploy/.env.prod.example deploy/.env.prod
 # Edit deploy/.env.prod and fill in real secrets and hostnames.
