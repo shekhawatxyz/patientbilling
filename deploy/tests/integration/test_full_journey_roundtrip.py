@@ -39,7 +39,21 @@ def _transition(session, path, object_uuid, name):
     return body
 
 
+def _object_uuid(session, path, field, value):
+    listed = session.get(
+        f"{BASE_URL}/{path}/",
+        params={"view": "table", "action": "get_table_data", "page": 1, "page_size": 200},
+    )
+    assert listed.status_code == 200, listed.text
+    for row in listed.json().get("data", []):
+        if row.get(field) == value:
+            return row["object_uuid"]
+    raise AssertionError(f"Could not resolve object_uuid for {path} {value}")
+
+
 def _create_claim(session, suffix):
+    payer = _ensure_payer(session, suffix)
+    patient = _ensure_patient(session, suffix)
     payer = _ensure_payer(session, suffix)
     patient = _ensure_patient(session, suffix)
     csrf = session.cookies.get("csrftoken") or ""
@@ -83,7 +97,8 @@ def test_staff_manager_invoice_and_handoff_journeys(app_session, manager_session
     suffix = f"{run_id}-journey"
 
     # Staff: create patient/claim, submit, and independently verify DB state.
-    patient = _ensure_patient(app_session, suffix)
+    patient_pk = _ensure_patient(app_session, suffix)
+    patient = _object_uuid(app_session, "patients", "pk", patient_pk)
     assert _db_row("patient", patient) is not None
     claim = _create_claim(app_session, suffix)
     _transition(app_session, "claims", claim, "submit")
@@ -109,7 +124,7 @@ def test_staff_manager_invoice_and_handoff_journeys(app_session, manager_session
     assert _db_row("workflowstate", claim, "current_state") == ("closed",)
 
     # Invoice: create, send, partial payment, paid; verify amount independently.
-    invoice = _create_invoice(app_session, suffix, patient)
+    invoice = _create_invoice(app_session, suffix, patient_pk)
     _transition(app_session, "invoices", invoice, "send")
     _transition(app_session, "invoices", invoice, "record_partial")
     _transition(app_session, "invoices", invoice, "mark_paid")
