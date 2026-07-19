@@ -225,6 +225,20 @@ Set the Cloudflare A record for `<placeholder>` to **DNS only** (the grey cloud,
 
 Caddy redirects `http://` requests to `https://` automatically. Once the deployment is live, replace `<placeholder>` with the live URL.
 
+### Single-domain deploys: platform API vs. app tenant
+
+`PLATFORM_DOMAIN_URL` binds your one real domain to the `public` tenant during bootstrap. Once
+the app's own tenant is created, that same domain has to be re-pointed from `public` to the app
+tenant (`Domain.domain` is uniquely constrained -- one domain can't map to both at once). At that
+point the App Panel/platform API becomes unreachable over HTTP on that domain (compounded by
+`PLATFORM_ADMIN_ALLOWED_IPS` gating platform access at the IP layer too).
+
+For a single-domain deploy, platform-API access and the live app are mutually exclusive over HTTP
+on that domain. Either: (a) provision a second subdomain up front (e.g. `admin.<domain>` ->
+`public`, `<domain>` -> app tenant) so platform access stays available post-deploy, or (b) treat
+post-bootstrap platform operations (policy sync, role/user creation) as Django shell/ORM-only
+once the domain has been re-pointed, not HTTP-API operations.
+
 ## Project structure
 
 ```text
