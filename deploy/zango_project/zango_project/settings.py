@@ -40,7 +40,13 @@ DEBUG = os.environ.get("ENV", "dev").lower() not in {"prod", "staging"}
 # Development-only fallback for the take-home demo; production must load this from secrets.
 SECRET_KEY = "django-insecure-_-b=nq4#@ks631=r#qa%c37cp@sh&-l^^3tl3b(p-7hsis*1b2"
 
-CSRF_TRUSTED_ORIGINS = ["http://localhost:3000"]
+CSRF_TRUSTED_ORIGINS = [
+    origin.strip()
+    for origin in os.environ.get(
+        "CSRF_TRUSTED_ORIGINS", "http://localhost:3000"
+    ).split(",")
+    if origin.strip()
+]
 
 # INTERNAL_IPS can contain a list of IP addresses or CIDR blocks that are considered internal.
 # Both individual IP addresses and CIDR notation (e.g., '192.168.1.1' or '192.168.1.0/24') can be provided.
