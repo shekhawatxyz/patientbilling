@@ -92,6 +92,14 @@ def test_init_selects_production_environment_file_when_env_is_prod():
     assert '. "$ENV_FILE"' in source
 
 
+def test_init_documents_platform_user_recovery_command():
+    source = INIT_SCRIPT.read_text(encoding="utf-8")
+
+    assert "from zango.cli.start_project import create_platform_user" in source
+    assert "create_platform_user" in source
+    assert "python manage.py shell -c" in source
+
+
 def test_real_provider_secret_never_reaches_output_or_process_arguments(tmp_path):
     sentinel = "sentinel-" + "anthropic-key-never-leak"
     fake_bin = tmp_path / "bin"
