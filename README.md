@@ -195,6 +195,30 @@ docker compose --env-file deploy/.env.prod -f deploy/docker_compose.prod.yml \
 
 Do not use Django's standalone `migrate` command. This scaffold does not include a reverse proxy or TLS termination, wildcard DNS for Zango's subdomain-based multi-tenant routing, or a PostgreSQL backup strategy. A real self-hosted deployment must add those separately.
 
+### Registering the checked-in workspace as an app tenant
+
+`POST /api/v1/apps/` always takes Zango's cookiecutter/greenfield path, which fails with
+`OutputDirExistsException` because `workspaces/patientbilling/` is already checked into this repo
+(this is an upstream Zango framework gap, not something fixable in this repo's own code). To
+register the existing workspace instead of generating a new one, call `initialize_workspace()`
+directly via the Django shell:
+
+```bash
+docker compose --env-file deploy/.env.prod -f deploy/docker_compose.prod.yml \
+  exec app bash -c 'cd /zango/zango_project && python manage.py shell'
+```
+
+```python
+import shutil
+from zango.apps.shared.tenancy.tasks import initialize_workspace
+
+# Pass a TEMPORARY COPY of the workspace dir, never the real path below --
+# this call shutil.rmtree()'s its app_template_path argument when it finishes,
+# which would delete the real, committed workspace code if pointed at it directly.
+shutil.copytree("/zango/zango_project/workspaces/patientbilling", "/tmp/patientbilling-template")
+initialize_workspace(tenant_uuid, app_template_path="/tmp/patientbilling-template")
+```
+
 ### Caddy + DNS
 
 Set the Cloudflare A record for `<placeholder>` to **DNS only** (the grey cloud, not proxied). Caddy must receive the real client connection for its Let's Encrypt HTTP-01 challenge.
