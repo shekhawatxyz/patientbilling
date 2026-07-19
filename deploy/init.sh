@@ -27,6 +27,11 @@ fi
 
 cd /zango
 
+# Recovery after a partial start-project: if the public tenant was created but platform
+# user creation did not complete, retries may not create the user again. From the project
+# directory, recreate it explicitly with:
+#   python manage.py shell -c 'from zango.cli.start_project import create_platform_user; create_platform_user("username", "password")'
+# Run this only when the public tenant has no platform user yet.
 echo "Initializing project database..."
 if ! zango start-project "$PROJECT_NAME" \
         --db_name="$POSTGRES_DB" \
