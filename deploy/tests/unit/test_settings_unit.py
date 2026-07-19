@@ -27,3 +27,19 @@ def test_csrf_trusted_origins_keeps_localhost_fallback():
     source = SETTINGS_FILE.read_text(encoding="utf-8")
 
     assert '"http://localhost:3000"' in source
+
+
+def test_internal_ips_reads_comma_separated_admin_allowlist():
+    source = SETTINGS_FILE.read_text(encoding="utf-8")
+
+    assert '"PLATFORM_ADMIN_ALLOWED_IPS", ""' in source
+    assert "INTERNAL_IPS = [" in source
+    assert "address.strip()" in source
+
+
+def test_internal_ips_fail_loudly_without_production_allowlist():
+    source = SETTINGS_FILE.read_text(encoding="utf-8")
+
+    assert '_environment in {"prod", "staging"} and not INTERNAL_IPS' in source
+    assert "raise RuntimeError(" in source
+    assert "PLATFORM_ADMIN_ALLOWED_IPS is required" in source
