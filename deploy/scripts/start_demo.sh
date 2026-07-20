@@ -23,7 +23,7 @@ command -v node >/dev/null 2>&1 || error "Node.js is required to build the front
 command -v npm >/dev/null 2>&1 || error "npm is required to build the frontend bundle."
 command -v curl >/dev/null 2>&1 || error "curl is required for readiness checks."
 
-NODE_MAJOR="$(node -p 'Number(process.versions.node.split(".")[0])' 2>/dev/null)"
+NODE_MAJOR="$(node -e 'console.log(process.versions.node.split(".")[0])' 2>/dev/null)"
 [[ "$NODE_MAJOR" =~ ^[0-9]+$ && "$NODE_MAJOR" -ge 18 ]] || error "Node.js 18 or newer is required."
 
 DOCKER_MODE=""

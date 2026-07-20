@@ -3,8 +3,7 @@
 Prerequisites: Docker Engine/Desktop with Compose v2, Node.js 18+, npm, and curl.
 
 ```bash
-git clone --branch fresh-clone-startup --single-branch \
-  https://github.com/shekhawatxyz/patientbilling.git
+git clone https://github.com/shekhawatxyz/patientbilling.git
 cd patientbilling
 bash deploy/scripts/start_demo.sh
 ```
