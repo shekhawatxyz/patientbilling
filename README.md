@@ -51,7 +51,7 @@ Under ADR-003/PAT-31, the server binds the claim ID in a `ContextVar`; the model
 From a fresh clone, run one command:
 
 ```bash
-git clone -b fresh-clone-startup <repo>
+git clone <repo>
 cd patientbilling
 bash deploy/scripts/start_demo.sh
 ```
